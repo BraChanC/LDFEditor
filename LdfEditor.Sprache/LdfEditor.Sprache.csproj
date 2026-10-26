@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>LdfEditor</RootNamespace>
+    <AssemblyName>LdfEditor.Sprache</AssemblyName>
+    <ApplicationTitle>LDF Editor (Sprache)</ApplicationTitle>
+    <NoWarn>$(NoWarn);CS3021</NoWarn>
+    <DefineConstants>$(DefineConstants);LDF_PARSER_SPRACHE</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Sprache" Version="2.3.1" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="_smoke\**" />
+    <None Remove="_smoke\**" />
+    <Page Remove="_smoke\**" />
+    <EmbeddedResource Remove="_smoke\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\LdfEditor\App.xaml.cs" Link="App.xaml.cs" />
+    <Compile Include="..\LdfEditor\MainWindow.xaml.cs" Link="MainWindow.xaml.cs" />
+    <Compile Include="..\LdfEditor\AssemblyInfo.cs" Link="AssemblyInfo.cs" Condition="Exists('..\LdfEditor\AssemblyInfo.cs')" />
+    <Compile Include="..\LdfEditor\Controls\**\*.cs" Link="Controls\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\LdfEditor\Converters\**\*.cs" Link="Converters\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\LdfEditor\Models\**\*.cs" Link="Models\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\LdfEditor\ViewModels\**\*.cs" Link="ViewModels\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\LdfEditor\Views\**\*.cs" Link="Views\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\LdfEditor\Services\**\*.cs" Link="Services\%(RecursiveDir)%(Filename)%(Extension)"
+             Exclude="..\LdfEditor\Services\LdfAntlrLoader.cs;..\LdfEditor\Services\NcfAntlrLoader.cs;..\LdfEditor\Services\Diagnostics\LdfDiagnosticEngine.cs" />
+    <Compile Include="..\LdfParserCommon\**\*.cs" Link="ParserCommon\%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ApplicationDefinition Include="..\LdfEditor\App.xaml" Link="App.xaml" />
+    <Page Include="..\LdfEditor\MainWindow.xaml" Link="MainWindow.xaml" />
+    <Page Include="..\LdfEditor\Views\**\*.xaml" Link="Views\%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+
+</Project>

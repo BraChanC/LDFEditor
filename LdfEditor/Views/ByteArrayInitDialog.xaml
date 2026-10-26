@@ -1,0 +1,18 @@
+<Window x:Class="LdfEditor.Views.ByteArrayInitDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Initial Value" Height="140" Width="420"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize"
+        Background="#F0F0F0" FontFamily="Tahoma" FontSize="11"
+        ShowInTaskbar="False">
+  <DockPanel Margin="10">
+    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+      <Button Content="OK" Width="75" Height="23" Margin="0,0,8,0" IsDefault="True" Click="OnOk"/>
+      <Button Content="Cancel" Width="75" Height="23" IsCancel="True"/>
+    </StackPanel>
+    <StackPanel>
+      <TextBlock Text="Byte array initial value (comma-separated, e.g. 0x00, 0x01, 0xFF):" Margin="0,0,0,6"/>
+      <TextBox x:Name="ValueBox" Height="22" VerticalContentAlignment="Center"/>
+    </StackPanel>
+  </DockPanel>
+</Window>

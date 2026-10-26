@@ -1,0 +1,430 @@
+<Window x:Class="LdfEditor.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:LdfEditor.ViewModels"
+        xmlns:ctrl="clr-namespace:LdfEditor.Controls"
+        Title="{Binding Title}" Height="820" Width="1360"
+        WindowStartupLocation="CenterScreen"
+        AllowDrop="True" Drop="OnDrop" DragOver="OnDragOver">
+  <Window.DataContext>
+    <vm:MainViewModel/>
+  </Window.DataContext>
+
+  <Window.InputBindings>
+    <KeyBinding Key="O" Modifiers="Control" Command="{Binding OpenCommand}"/>
+    <KeyBinding Key="S" Modifiers="Control" Command="{Binding SaveCommand}"/>
+    <KeyBinding Key="F5" Command="{Binding ReloadCommand}"/>
+    <KeyBinding Key="F1" Command="{Binding HelpContentCommand}"/>
+    <KeyBinding Key="F4" Modifiers="Alt" Command="{Binding ExitCommand}"/>
+  </Window.InputBindings>
+
+  <DockPanel>
+    <Menu x:Name="MainMenu" DockPanel.Dock="Top" Background="{StaticResource Vec.Header}" Padding="2">
+      <MenuItem x:Name="FileMenu" Header="_File">
+        <MenuItem Header="_New File...">
+          <MenuItem.Icon>
+            <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE8A5;" FontSize="13" Margin="2,0"/>
+          </MenuItem.Icon>
+          <MenuItem Header="LDF ISO17987:2015" Command="{Binding NewFileCommand}" CommandParameter="iso17987"/>
+          <MenuItem Header="LDF 2.2" Command="{Binding NewFileCommand}" CommandParameter="2.2"/>
+          <MenuItem Header="LDF 2.1" Command="{Binding NewFileCommand}" CommandParameter="2.1"/>
+          <MenuItem Header="LDF 2.0" Command="{Binding NewFileCommand}" CommandParameter="2.0"/>
+          <MenuItem Header="LDF 1.3" Command="{Binding NewFileCommand}" CommandParameter="1.3"/>
+          <MenuItem Header="LDF J2602:2012" Command="{Binding NewFileCommand}" CommandParameter="j2602-2012"/>
+          <MenuItem Header="LDF J2602:2021" Command="{Binding NewFileCommand}" CommandParameter="j2602-2021"/>
+          <MenuItem Header="OEM variant" Command="{Binding NewFileCommand}" CommandParameter="oem"/>
+        </MenuItem>
+        <MenuItem Header="_Open File..." Command="{Binding OpenCommand}" InputGestureText="Ctrl+O">
+          <MenuItem.Icon>
+            <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xED25;" FontSize="13" Margin="2,0"/>
+          </MenuItem.Icon>
+        </MenuItem>
+        <MenuItem Header="_Save File" Command="{Binding SaveCommand}" InputGestureText="Ctrl+S">
+          <MenuItem.Icon>
+            <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE74E;" FontSize="13" Margin="2,0"/>
+          </MenuItem.Icon>
+        </MenuItem>
+        <MenuItem Header="Save File _As..." Command="{Binding SaveAsCommand}">
+          <MenuItem.Icon>
+            <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE792;" FontSize="13" Margin="2,0"/>
+          </MenuItem.Icon>
+        </MenuItem>
+        <Separator x:Name="RecentSepTop"/>
+        <!-- Recent files injected in code-behind -->
+        <Separator x:Name="RecentSepBottom"/>
+        <MenuItem Header="E_xit" Command="{Binding ExitCommand}" InputGestureText="Alt+F4"/>
+      </MenuItem>
+
+      <MenuItem Header="_Edit" SubmenuOpened="OnEditMenuOpening">
+        <MenuItem Header="Create _Slave Node..." Command="{Binding CreateSlaveNodeCommand}">
+          <MenuItem.Icon>
+            <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE77B;" FontSize="13" Margin="2,0"/>
+          </MenuItem.Icon>
+        </MenuItem>
+        <MenuItem Header="Create _Frame...">
+          <MenuItem.Icon>
+            <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE715;" FontSize="13" Margin="2,0"/>
+          </MenuItem.Icon>
+          <MenuItem Header="Create _Unconditional Frame..." Command="{Binding CreateUnconditionalFrameCommand}">
+            <MenuItem.Icon>
+              <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE715;" FontSize="13" Margin="2,0"/>
+            </MenuItem.Icon>
+          </MenuItem>
+          <MenuItem Header="Create _Event-Triggered Frame..." Command="{Binding CreateEventTriggeredFrameCommand}">
+            <MenuItem.Icon>
+              <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE945;" FontSize="13" Margin="2,0"/>
+            </MenuItem.Icon>
+          </MenuItem>
+          <MenuItem Header="Create S_poradic Frame..." Command="{Binding CreateSporadicFrameCommand}">
+            <MenuItem.Icon>
+              <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE121;" FontSize="13" Margin="2,0"/>
+            </MenuItem.Icon>
+          </MenuItem>
+        </MenuItem>
+        <MenuItem Header="Create Schedule _Table..." Command="{Binding CreateScheduleTableCommand}">
+          <MenuItem.Icon>
+            <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE80A;" FontSize="13" Margin="2,0"/>
+          </MenuItem.Icon>
+        </MenuItem>
+        <MenuItem Header="_Import NCF..." Command="{Binding ImportNcfCommand}"/>
+        <MenuItem x:Name="ExportNcfMenu" Header="_Export NCF..." SubmenuOpened="OnExportNcfOpening">
+          <!-- Slave items injected; Vector NCFFileExport_Click -->
+          <MenuItem Header="Export _All Nodes..." Command="{Binding ExportNcfCommand}" CommandParameter="*"/>
+        </MenuItem>
+        <Separator/>
+        <MenuItem Header="_Edit..." Command="{Binding EditSelectionCommand}">
+          <MenuItem.Icon>
+            <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE70F;" FontSize="13" Margin="2,0"/>
+          </MenuItem.Icon>
+        </MenuItem>
+        <MenuItem Header="_Delete..." Command="{Binding DeleteSelectionCommand}">
+          <MenuItem.Icon>
+            <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE74D;" FontSize="13" Foreground="#C42B1C" Margin="2,0"/>
+          </MenuItem.Icon>
+        </MenuItem>
+        <Separator/>
+        <MenuItem Header="_Update All" Command="{Binding UpdateAllCommand}"/>
+      </MenuItem>
+
+      <MenuItem Header="_Help">
+        <MenuItem Header="_Help Content..." Command="{Binding HelpContentCommand}" InputGestureText="F1"/>
+        <MenuItem Header="_About LIN Explorer..." Command="{Binding AboutCommand}"/>
+      </MenuItem>
+    </Menu>
+    <!-- Vector MainWindow ToolStrip: New▼ Open Consistency Save SaveAll | Slave Frame▼ Schedule | hex | Help -->
+    <ToolBarTray DockPanel.Dock="Top" Background="{StaticResource Vec.Header}">
+      <ToolBar Band="0" BandIndex="0" ToolBarTray.IsLocked="True"
+              Background="{StaticResource Vec.Header}" Padding="2,1">
+        <!-- tsbNewFile (ToolStripSplitButton) -->
+        <Menu Style="{StaticResource Vec.TbMenu}" ToolTip="New File">
+          <MenuItem Style="{StaticResource Vec.TbMenuItem}">
+            <MenuItem.Header>
+              <StackPanel Orientation="Horizontal">
+                <TextBlock Style="{StaticResource Vec.TbIcon}" Text="&#xE8A5;" Foreground="#333"/>
+                <TextBlock Text="▾" FontSize="9" VerticalAlignment="Center" Margin="1,0,0,0" Foreground="#555"/>
+              </StackPanel>
+            </MenuItem.Header>
+            <MenuItem Header="LDF ISO17987:2015" Command="{Binding NewFileCommand}" CommandParameter="iso17987"/>
+            <MenuItem Header="LDF 2.2" Command="{Binding NewFileCommand}" CommandParameter="2.2"/>
+            <MenuItem Header="LDF 2.1" Command="{Binding NewFileCommand}" CommandParameter="2.1"/>
+            <MenuItem Header="LDF 2.0" Command="{Binding NewFileCommand}" CommandParameter="2.0"/>
+            <MenuItem Header="LDF 1.3" Command="{Binding NewFileCommand}" CommandParameter="1.3"/>
+            <MenuItem Header="LDF J2602:2012" Command="{Binding NewFileCommand}" CommandParameter="j2602-2012"/>
+            <MenuItem Header="LDF J2602:2021" Command="{Binding NewFileCommand}" CommandParameter="j2602-2021"/>
+            <MenuItem Header="OEM variant" Command="{Binding NewFileCommand}" CommandParameter="oem"/>
+          </MenuItem>
+        </Menu>
+        <!-- tsbOpenFile -->
+        <Button Style="{StaticResource Vec.TbButton}" Command="{Binding OpenCommand}" ToolTip="Open File">
+          <TextBlock Style="{StaticResource Vec.TbIcon}" Text="&#xED25;" Foreground="#C9A227"/>
+        </Button>
+        <!-- tsbStartLINConsistencyChecker -->
+        <Button Style="{StaticResource Vec.TbButton}" Command="{Binding RunConsistencyCheckerCommand}"
+                ToolTip="LIN Consistency Checker">
+          <Grid Width="20" Height="20">
+            <TextBlock Style="{StaticResource Vec.TbIcon}" Text="&#xE8F1;" Foreground="#2E7D32" Margin="0"/>
+            <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE73E;" FontSize="10"
+                       Foreground="#1B5E20" HorizontalAlignment="Right" VerticalAlignment="Bottom"/>
+          </Grid>
+        </Button>
+        <!-- tsbSaveFile -->
+        <Button Style="{StaticResource Vec.TbButton}" Command="{Binding SaveCommand}" ToolTip="Save File">
+          <TextBlock Style="{StaticResource Vec.TbIcon}" Text="&#xE74E;" Foreground="#555"/>
+        </Button>
+        <!-- Save All (dual floppy in Vector) -->
+        <Button Style="{StaticResource Vec.TbButton}" Command="{Binding SaveAllCommand}" ToolTip="Save All">
+          <Grid Width="22" Height="20">
+            <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE74E;" FontSize="14"
+                       Foreground="#3A6EA5" Margin="4,2,0,0"/>
+            <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE74E;" FontSize="14"
+                       Foreground="#2A5A8A" Margin="0,0,4,2"/>
+          </Grid>
+        </Button>
+
+        <Separator/>
+
+        <!-- tsbCreateSlaveNode -->
+        <Button Style="{StaticResource Vec.TbButton}" Command="{Binding CreateSlaveNodeCommand}"
+                ToolTip="Create Slave Node">
+          <Grid Width="20" Height="20">
+            <TextBlock Style="{StaticResource Vec.TbIcon}" Text="&#xE77B;" Foreground="#333" Margin="0"/>
+            <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE734;" FontSize="9"
+                       Foreground="#E6A800" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="-1,-1,0,0"/>
+          </Grid>
+        </Button>
+        <!-- Create Frame (ToolStripSplitButton) -->
+        <Menu Style="{StaticResource Vec.TbMenu}" ToolTip="Create Frame">
+          <MenuItem Style="{StaticResource Vec.TbMenuItem}">
+            <MenuItem.Header>
+              <StackPanel Orientation="Horizontal">
+                <Grid Width="20" Height="20">
+                  <TextBlock Style="{StaticResource Vec.TbIcon}" Text="&#xE715;" Foreground="#333" Margin="0"/>
+                  <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE734;" FontSize="9"
+                             Foreground="#E6A800" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="-1,-1,0,0"/>
+                </Grid>
+                <TextBlock Text="▾" FontSize="9" VerticalAlignment="Center" Margin="1,0,0,0" Foreground="#555"/>
+              </StackPanel>
+            </MenuItem.Header>
+            <MenuItem Header="Create Unconditional Frame..." Command="{Binding CreateUnconditionalFrameCommand}"/>
+            <MenuItem Header="Create Event-Triggered Frame..." Command="{Binding CreateEventTriggeredFrameCommand}"/>
+            <MenuItem Header="Create Sporadic Frame..." Command="{Binding CreateSporadicFrameCommand}"/>
+          </MenuItem>
+        </Menu>
+        <!-- tsbCreateScheduleTable -->
+        <Button Style="{StaticResource Vec.TbButton}" Command="{Binding CreateScheduleTableCommand}"
+                ToolTip="Create Schedule Table">
+          <Grid Width="20" Height="20">
+            <TextBlock Style="{StaticResource Vec.TbIcon}" Text="&#xE80A;" Foreground="#333" Margin="0"/>
+            <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE734;" FontSize="9"
+                       Foreground="#E6A800" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="-1,-1,0,0"/>
+          </Grid>
+        </Button>
+
+        <Separator/>
+
+        <!-- tsbHexDec — Vector GlobalNumberVisualizationMode; caption hex|dec -->
+        <ToggleButton Style="{StaticResource Vec.TbHex}"
+                      IsChecked="{Binding IsHexMode}"
+                      Content="{Binding HexModeLabel}"
+                      ToolTip="Hexadecimal / Decimal number display (Vector tsbHexDec)"/>
+
+        <Separator/>
+
+        <!-- tsbHelp -->
+        <Button Style="{StaticResource Vec.TbButton}" Command="{Binding HelpContentCommand}" ToolTip="Help Content">
+          <TextBlock Style="{StaticResource Vec.TbIcon}" Text="&#xE897;" Foreground="#1976D2"/>
+        </Button>
+
+        <Separator/>
+        <TextBlock Text="{Binding FilePath}" VerticalAlignment="Center" Margin="8,0"
+                   Foreground="#666" TextTrimming="CharacterEllipsis" MaxWidth="560"/>
+      </ToolBar>
+    </ToolBarTray>
+    <StatusBar DockPanel.Dock="Bottom">
+      <TextBlock Text="{Binding StatusText}"/>
+    </StatusBar>
+
+    <!-- Outer: Nav | Content -->
+    <Grid Margin="4">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="240" MinWidth="160"/>
+        <ColumnDefinition Width="5"/>
+        <ColumnDefinition Width="*" MinWidth="480"/>
+      </Grid.ColumnDefinitions>
+
+      <!-- Left navigation: Vector-style Frames/Commands | Nodes/Frames tabs -->
+      <Border Grid.Column="0" BorderBrush="#A0A0A0" BorderThickness="1" Background="White">
+        <TabControl Style="{StaticResource Vec.NavTabControl}">
+          <TabControl.Resources>
+            <Style TargetType="TabItem" BasedOn="{StaticResource Vec.NavTabItem}"/>
+            <Style x:Key="NavTreeItemStyle" TargetType="TreeViewItem" BasedOn="{StaticResource {x:Type TreeViewItem}}">
+              <Setter Property="IsExpanded" Value="True"/>
+              <Setter Property="Padding" Value="1,1"/>
+              <Setter Property="FontFamily" Value="Tahoma"/>
+              <Setter Property="FontSize" Value="11"/>
+              <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+              <Setter Property="VerticalContentAlignment" Value="Center"/>
+            </Style>
+            <HierarchicalDataTemplate x:Key="NavTreeTemplate" ItemsSource="{Binding Children}">
+              <TextBlock Text="{Binding Title}" Margin="0,1"/>
+            </HierarchicalDataTemplate>
+          </TabControl.Resources>
+          <TabItem Header="Frames/Commands">
+            <TreeView ItemsSource="{Binding FramesTreeRoots}"
+                      SelectedItemChanged="OnTreeSelected"
+                      MouseDoubleClick="OnTreeDoubleClick"
+                      ItemContainerStyle="{StaticResource NavTreeItemStyle}"
+                      ItemTemplate="{StaticResource NavTreeTemplate}"
+                      BorderThickness="0" Background="White"
+                      VirtualizingStackPanel.IsVirtualizing="True"/>
+          </TabItem>
+          <TabItem Header="Nodes/Frames">
+            <TreeView ItemsSource="{Binding NodesTreeRoots}"
+                      SelectedItemChanged="OnTreeSelected"
+                      MouseDoubleClick="OnTreeDoubleClick"
+                      ItemContainerStyle="{StaticResource NavTreeItemStyle}"
+                      ItemTemplate="{StaticResource NavTreeTemplate}"
+                      BorderThickness="0" Background="White"
+                      VirtualizingStackPanel.IsVirtualizing="True"/>
+          </TabItem>
+        </TabControl>
+      </Border>
+
+      <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch"/>
+
+      <!-- Right: Top / Bottom bands with independent L|R splits -->
+      <Grid Grid.Column="2">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="2*" MinHeight="140"/>
+          <RowDefinition Height="5"/>
+          <RowDefinition Height="3*" MinHeight="180"/>
+        </Grid.RowDefinitions>
+
+        <!-- ========== TOP BAND: Schedule | Schedule Props ========== -->
+        <Grid Grid.Row="0">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" MinWidth="220"/>
+            <ColumnDefinition Width="5"/>
+            <ColumnDefinition Width="300" MinWidth="200"/>
+          </Grid.ColumnDefinitions>
+
+          <Border Grid.Column="0" Style="{StaticResource Vec.PanelBorder}">
+            <DockPanel>
+              <Border DockPanel.Dock="Top" Style="{StaticResource Vec.HeaderBar}">
+                <TextBlock Text="Schedule Tables" Style="{StaticResource Vec.SectionTitle}"/>
+              </Border>
+              <DataGrid ItemsSource="{Binding ScheduleRows}"
+                        SelectedItem="{Binding SelectedScheduleRow}">
+                <DataGrid.RowStyle>
+                  <Style TargetType="DataGridRow">
+                    <Style.Triggers>
+                      <DataTrigger Binding="{Binding IsHeader}" Value="True">
+                        <Setter Property="FontWeight" Value="SemiBold"/>
+                        <Setter Property="Background" Value="{StaticResource Vec.AccentSoft}"/>
+                      </DataTrigger>
+                    </Style.Triggers>
+                  </Style>
+                </DataGrid.RowStyle>
+                <DataGrid.Columns>
+                  <DataGridTextColumn Header="Table / Slot" Binding="{Binding Table}" Width="200"/>
+                  <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="120"/>
+                  <DataGridTextColumn Header="Delay [ms]" Binding="{Binding Delay}" Width="80"/>
+                  <DataGridTextColumn Header="Max. Frame Time" Binding="{Binding MaxFrame}" Width="110"/>
+                  <DataGridTextColumn Header="Min. Frame Time" Binding="{Binding MinFrame}" Width="110"/>
+                  <DataGridTextColumn Header="Act. Min/Max Period" Binding="{Binding Period}" Width="*"/>
+                </DataGrid.Columns>
+              </DataGrid>
+            </DockPanel>
+          </Border>
+
+          <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch"/>
+
+          <Border Grid.Column="2" Style="{StaticResource Vec.PanelBorder}">
+            <DockPanel>
+              <Border DockPanel.Dock="Top" Style="{StaticResource Vec.HeaderBar}">
+                <TextBlock Text="{Binding SchedulePropTitle}" Style="{StaticResource Vec.SectionTitle}"/>
+              </Border>
+              <TreeView ItemsSource="{Binding ScheduleProps}"
+                        Style="{StaticResource Vec.PropTreeView}"
+                        ItemContainerStyle="{StaticResource Vec.PropTreeItem}"
+                        ItemTemplate="{StaticResource Vec.PropItemTemplate}"/>
+            </DockPanel>
+          </Border>
+        </Grid>
+
+        <GridSplitter Grid.Row="1" Height="5" HorizontalAlignment="Stretch"/>
+
+        <!-- ========== BOTTOM BAND: Detail | Object Props ========== -->
+        <Grid Grid.Row="2">
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*" MinWidth="220"/>
+            <ColumnDefinition Width="5"/>
+            <ColumnDefinition Width="300" MinWidth="200"/>
+          </Grid.ColumnDefinitions>
+
+          <Border Grid.Column="0" Style="{StaticResource Vec.PanelBorder}">
+            <DockPanel>
+              <Border DockPanel.Dock="Top" Style="{StaticResource Vec.HeaderBar}">
+                <TextBlock Text="{Binding DetailTitle}" Style="{StaticResource Vec.SectionTitle}"/>
+              </Border>
+
+              <!-- Nodes mode (root / node / command) -->
+              <DataGrid ItemsSource="{Binding NodeRows}"
+                        SelectedItem="{Binding SelectedNodeRow}"
+                        Visibility="{Binding IsNodesDetailMode, Converter={StaticResource BoolToVis}}">
+                <DataGrid.Columns>
+                  <DataGridTextColumn Header="Node" Binding="{Binding Node}" Width="90"/>
+                  <DataGridTextColumn Header="Timebase [ms]" Binding="{Binding Timebase}" Width="90"/>
+                  <DataGridTextColumn Header="Jitter [ms]" Binding="{Binding Jitter}" Width="80"/>
+                  <DataGridTextColumn Header="Configured NAD" Binding="{Binding ConfiguredNad}" Width="100"/>
+                  <DataGridTextColumn Header="Initial NAD" Binding="{Binding InitialNad}" Width="80"/>
+                  <DataGridTextColumn Header="Protocol" Binding="{Binding Protocol}" Width="80"/>
+                  <DataGridTextColumn Header="Supplier ID" Binding="{Binding SupplierId}" Width="80"/>
+                  <DataGridTextColumn Header="Function ID" Binding="{Binding FunctionId}" Width="80"/>
+                  <DataGridTextColumn Header="Variant ID" Binding="{Binding VariantId}" Width="*"/>
+                </DataGrid.Columns>
+              </DataGrid>
+
+              <!-- Frame list mode (categories / ET / sporadic / schedule table) -->
+              <DataGrid ItemsSource="{Binding FrameListRows}"
+                        SelectedItem="{Binding SelectedFrameListRow}"
+                        MouseDoubleClick="OnFrameListGridDoubleClick"
+                        Visibility="{Binding IsFrameListDetailMode, Converter={StaticResource BoolToVis}}">
+                <DataGrid.Columns>
+                  <DataGridTextColumn Header="Frame" Binding="{Binding Name}" Width="160"/>
+                  <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="70"/>
+                  <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="110"/>
+                  <DataGridTextColumn Header="Publisher" Binding="{Binding Publisher}" Width="100"/>
+                  <DataGridTextColumn Header="Length [Byte]" Binding="{Binding Length}" Width="*"/>
+                </DataGrid.Columns>
+              </DataGrid>
+
+              <!-- Signal list / Layout (frame leaf or schedule frame slot) -->
+              <TabControl SelectedIndex="{Binding DetailTabIndex}"
+                          Visibility="{Binding IsFrameDetailMode, Converter={StaticResource BoolToVis}}">
+                <TabItem Header="List">
+                  <DataGrid ItemsSource="{Binding FrameSignals}"
+                            SelectedItem="{Binding SelectedFrameSignal}"
+                            MouseDoubleClick="OnFrameSignalGridDoubleClick">
+                    <DataGrid.Columns>
+                      <DataGridTextColumn Header="Signal" Binding="{Binding Name}" Width="160"/>
+                      <DataGridTextColumn Header="Startbit" Binding="{Binding StartBit}" Width="70"/>
+                      <DataGridTextColumn Header="Length [Bit]" Binding="{Binding Length}" Width="90"/>
+                      <DataGridTextColumn Header="Publisher" Binding="{Binding Publisher}" Width="100"/>
+                      <DataGridTextColumn Header="Subscribers" Binding="{Binding Subscribers}" Width="*"/>
+                    </DataGrid.Columns>
+                  </DataGrid>
+                </TabItem>
+                <TabItem Header="Layout"
+                         Visibility="{Binding DetailFrame, Converter={StaticResource NullToVis}}">
+                  <Border Background="White" Padding="4">
+                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                      <ctrl:LinBitLayoutControl x:Name="MainBitLayout" MinHeight="200"
+                          Frame="{Binding DetailFrame}"
+                          Database="{Binding Database}"
+                          SelectedSignalIndex="{Binding SelectedSignalIndex, Mode=TwoWay}"/>
+                    </ScrollViewer>
+                  </Border>
+                </TabItem>
+              </TabControl>
+            </DockPanel>
+          </Border>
+
+          <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch"/>
+
+          <Border Grid.Column="2" Style="{StaticResource Vec.PanelBorder}">
+            <DockPanel>
+              <Border DockPanel.Dock="Top" Style="{StaticResource Vec.HeaderBar}">
+                <TextBlock Text="{Binding ObjectPropTitle}" Style="{StaticResource Vec.SectionTitle}"/>
+              </Border>
+              <TreeView ItemsSource="{Binding BusProps}"
+                        Style="{StaticResource Vec.PropTreeView}"
+                        ItemContainerStyle="{StaticResource Vec.PropTreeItem}"
+                        ItemTemplate="{StaticResource Vec.PropItemTemplate}"/>
+            </DockPanel>
+          </Border>
+        </Grid>
+      </Grid>
+    </Grid>
+  </DockPanel>
+</Window>

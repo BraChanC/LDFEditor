@@ -1,0 +1,33 @@
+## Build
+bin/
+obj/
+[Bb]uild/
+[Oo]ut/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.vs/
+*.DotSettings.user
+
+## NuGet
+*.nupkg
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+
+## Logs / temp
+*.log
+*.tmp
+*.cache
+_antlr_tmp*/
+_ldf_probe/
+_tokdump/
+
+## Local reference / third-party (do not publish)
+_ref_*/
+_ref_LDFExplorer/
+
+## OS
+Thumbs.db
+Desktop.ini
+.DS_Store

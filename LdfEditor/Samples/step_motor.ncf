@@ -1,0 +1,64 @@
+node_capability_file;
+LIN_language_version = "2.1";
+
+node step_motor {
+  general {
+    LIN_protocol_version = "2.1";
+    supplier = 0x0005;
+    function = 0x0020;
+    variant = 1;
+    bitrate = 19.2 kbps;
+    sends_wake_up_signal = "yes";
+  }
+  diagnostic {
+    NAD = 0x20;
+    diagnostic_class = 1;
+    P2_min = 50 ms;
+    ST_min = 0 ms;
+    N_As_timeout = 1000 ms;
+    N_Cr_timeout = 1000 ms;
+    support_sid { 0xB2, 0xB7 };
+  }
+  frames {
+    publish MotorCtrl {
+      length = 2;
+      signals {
+        MotorSpeed {
+          init_value = 0;
+          size = 8;
+          offset = 0;
+          MotorSpeedEncoding;
+        }
+        MotorDir {
+          init_value = 0;
+          size = 1;
+          offset = 8;
+        }
+        RSMerror {
+          init_value = 0;
+          size = 1;
+          offset = 9;
+        }
+      }
+    }
+    subscribe LightCmd {
+      length = 1;
+      signals {
+        LeftLight {
+          init_value = 0;
+          size = 1;
+          offset = 0;
+        }
+      }
+    }
+  }
+  encoding {
+    MotorSpeedEncoding {
+      physical_value, 0, 255, 1, 0, "rpm";
+      logical_value, 0, "stop";
+    }
+  }
+  status_management {
+    response_error = RSMerror;
+  }
+}

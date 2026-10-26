@@ -1,0 +1,34 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <NoWarn>$(NoWarn);CS3021</NoWarn>
+    <ApplicationTitle>LDF Editor</ApplicationTitle>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Antlr4.Runtime.Standard" Version="4.13.1" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
+  </ItemGroup>
+
+  <!-- Decompiled Vector LDF Explorer reference (study only; do not compile). -->
+  <ItemGroup>
+    <Compile Remove="_ref_LDFExplorer\**" />
+    <EmbeddedResource Remove="_ncf_smoke\**" />
+    <EmbeddedResource Remove="_ref_LDFExplorer\**" />
+    <None Remove="_ncf_smoke\**" />
+    <None Remove="_ref_LDFExplorer\**" />
+    <Page Remove="_ncf_smoke\**" />
+    <Page Remove="_ref_LDFExplorer\**" />
+    <Compile Remove="_bind_diag\**" />
+    <Compile Remove="_parse_smoke\**" />
+    <Compile Remove="_ncf_smoke\**" />
+    <Page Remove="_bind_diag\**" />
+    <None Remove="_bind_diag\**" />
+  </ItemGroup>
+
+</Project>

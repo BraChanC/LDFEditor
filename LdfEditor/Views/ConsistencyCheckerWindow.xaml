@@ -1,0 +1,155 @@
+<Window x:Class="LdfEditor.Views.ConsistencyCheckerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="LIN Consistency Checker" Height="640" Width="1100"
+        WindowStartupLocation="CenterOwner"
+        Background="#F5F6F8"
+        Closing="OnClosing"
+        PreviewKeyDown="OnPreviewKeyDown">
+  <DockPanel>
+    <ToolBarTray DockPanel.Dock="Top" Background="#E8EAED">
+      <ToolBar>
+        <Button Content="Save" Click="OnSave" Padding="8,3" Margin="2,0"
+                ToolTip="Save LDF (Ctrl+S)"/>
+        <Button Content="Save As…" Click="OnSaveAs" Padding="8,3" Margin="2,0"
+                ToolTip="Save LDF As (Ctrl+Shift+S)"/>
+        <Separator/>
+        <Button Content="Run Checks" Click="OnRunChecks" Padding="8,3" Margin="2,0"
+                ToolTip="Re-run consistency checks on current editor text (F5)"/>
+        <Button Content="Reload File" Click="OnReloadFile" Padding="8,3" Margin="2,0"
+                ToolTip="Discard edits and reload from disk"/>
+        <Separator/>
+        <TextBlock Text="{Binding StatusLine}" VerticalAlignment="Center" Margin="8,0" Foreground="#555"/>
+      </ToolBar>
+    </ToolBarTray>
+
+    <Grid Margin="4">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="1.1*" MinWidth="380"/>
+        <ColumnDefinition Width="5"/>
+        <ColumnDefinition Width="1.2*" MinWidth="360"/>
+      </Grid.ColumnDefinitions>
+
+      <!-- Results: Vector-style columns + detail -->
+      <Grid Grid.Column="0">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="*" MinHeight="180"/>
+          <RowDefinition Height="5"/>
+          <RowDefinition Height="160" MinHeight="100"/>
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" BorderBrush="#A0A0A0" BorderThickness="1" Background="White">
+          <DockPanel>
+            <Border DockPanel.Dock="Top" Background="#ECE9D8" BorderBrush="#A0A0A0"
+                    BorderThickness="0,0,0,1" Padding="6,3">
+              <TextBlock Text="Results" FontWeight="SemiBold" FontFamily="Tahoma" FontSize="11"/>
+            </Border>
+            <DataGrid x:Name="ResultsGrid"
+                      AutoGenerateColumns="False"
+                      IsReadOnly="True"
+                      HeadersVisibility="Column"
+                      SelectionMode="Single"
+                      SelectionUnit="FullRow"
+                      CanUserAddRows="False"
+                      CanUserDeleteRows="False"
+                      GridLinesVisibility="Horizontal"
+                      HorizontalGridLinesBrush="#E0E0E0"
+                      RowHeight="22"
+                      FontFamily="Tahoma"
+                      FontSize="11"
+                      BorderThickness="0"
+                      SelectionChanged="OnResultSelectionChanged">
+              <DataGrid.Columns>
+                <DataGridTextColumn Header="Code" Binding="{Binding Code}" Width="70"/>
+                <DataGridTextColumn Header="Inconsistency" Binding="{Binding Inconsistency}" Width="2.4*"/>
+                <DataGridTextColumn Header="Source" Binding="{Binding Source}" Width="90"/>
+                <DataGridTextColumn Header="Constraint / Rule" Binding="{Binding Constraint}" Width="2*"/>
+                <DataGridTextColumn Header="Line" Binding="{Binding Line}" Width="44"/>
+                <DataGridTextColumn Header="Col" Binding="{Binding Column}" Width="40"/>
+              </DataGrid.Columns>
+              <DataGrid.GroupStyle>
+                <GroupStyle>
+                  <GroupStyle.HeaderTemplate>
+                    <DataTemplate>
+                      <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Margin="4,2"
+                                 FontFamily="Tahoma" FontSize="11"/>
+                    </DataTemplate>
+                  </GroupStyle.HeaderTemplate>
+                </GroupStyle>
+              </DataGrid.GroupStyle>
+              <DataGrid.RowStyle>
+                <Style TargetType="DataGridRow">
+                  <Style.Triggers>
+                    <DataTrigger Binding="{Binding Severity}" Value="Error">
+                      <Setter Property="Foreground" Value="#8B0000"/>
+                    </DataTrigger>
+                    <DataTrigger Binding="{Binding Severity}" Value="Warning">
+                      <Setter Property="Foreground" Value="#B35C00"/>
+                    </DataTrigger>
+                    <DataTrigger Binding="{Binding Severity}" Value="Notification">
+                      <Setter Property="Foreground" Value="#666666"/>
+                    </DataTrigger>
+                  </Style.Triggers>
+                </Style>
+              </DataGrid.RowStyle>
+            </DataGrid>
+          </DockPanel>
+        </Border>
+
+        <GridSplitter Grid.Row="1" Height="5" HorizontalAlignment="Stretch" Background="#B0B4B8"/>
+
+        <Border Grid.Row="2" BorderBrush="#A0A0A0" BorderThickness="1" Background="White">
+          <DockPanel>
+            <Border DockPanel.Dock="Top" Background="#ECE9D8" BorderBrush="#A0A0A0"
+                    BorderThickness="0,0,0,1" Padding="6,3">
+              <TextBlock Text="Why / Rule detail" FontWeight="SemiBold" FontFamily="Tahoma" FontSize="11"/>
+            </Border>
+            <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="8,6">
+              <StackPanel>
+                <TextBlock x:Name="DetailRuleId" FontFamily="Tahoma" FontSize="11"
+                           FontWeight="SemiBold" Foreground="#2A5A8A" TextWrapping="Wrap" Margin="0,0,0,6"/>
+                <TextBlock Text="Why" FontWeight="SemiBold" FontFamily="Tahoma" FontSize="11" Margin="0,0,0,2"/>
+                <TextBlock x:Name="DetailWhy" FontFamily="Tahoma" FontSize="11"
+                           TextWrapping="Wrap" Margin="0,0,0,8"/>
+                <TextBlock Text="Constraint (rule)" FontWeight="SemiBold" FontFamily="Tahoma" FontSize="11" Margin="0,0,0,2"/>
+                <TextBlock x:Name="DetailConstraint" FontFamily="Tahoma" FontSize="11"
+                           TextWrapping="Wrap" Foreground="#333"/>
+              </StackPanel>
+            </ScrollViewer>
+          </DockPanel>
+        </Border>
+      </Grid>
+
+      <GridSplitter Grid.Column="1" Width="5" HorizontalAlignment="Stretch" Background="#B0B4B8"/>
+
+      <!-- Editable LDF source -->
+      <Border Grid.Column="2" BorderBrush="#A0A0A0" BorderThickness="1" Background="White">
+        <DockPanel>
+          <Border DockPanel.Dock="Top" Background="#ECE9D8" BorderBrush="#A0A0A0"
+                  BorderThickness="0,0,0,1" Padding="6,3">
+            <DockPanel>
+              <TextBlock x:Name="SourceTitle" Text="LDF Source (editable)" FontWeight="SemiBold"
+                         FontFamily="Tahoma" FontSize="11" VerticalAlignment="Center"/>
+              <TextBlock x:Name="DirtyMark" DockPanel.Dock="Right" Text="" Foreground="#8B0000"
+                         FontWeight="Bold" FontFamily="Tahoma" FontSize="11"
+                         VerticalAlignment="Center" Margin="8,0,0,0"/>
+            </DockPanel>
+          </Border>
+          <TextBox x:Name="SourceBox"
+                   IsReadOnly="False"
+                   AcceptsReturn="True"
+                   AcceptsTab="True"
+                   TextWrapping="NoWrap"
+                   VerticalScrollBarVisibility="Auto"
+                   HorizontalScrollBarVisibility="Auto"
+                   FontFamily="Consolas"
+                   FontSize="12"
+                   BorderThickness="0"
+                   Padding="4"
+                   UndoLimit="200"
+                   TextChanged="OnSourceTextChanged"/>
+        </DockPanel>
+      </Border>
+    </Grid>
+  </DockPanel>
+</Window>

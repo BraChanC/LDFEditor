@@ -1,0 +1,154 @@
+<Window x:Class="LdfEditor.Views.FrameEditorWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ctrl="clr-namespace:LdfEditor.Controls"
+        Title="Edit Frame" Height="600" Width="780"
+        WindowStartupLocation="CenterOwner" Background="#FFF0F0F0"
+        MinWidth="640" MinHeight="460" FontFamily="Tahoma" FontSize="11">
+  <!-- Layout mirrored from Vector FrameDialogMainControl (LIN): Props / RxTx / Mapped Signals. -->
+  <Window.Resources>
+    <Style x:Key="MapTabItem" TargetType="TabItem">
+      <Setter Property="Width" Value="36"/>
+      <Setter Property="Height" Value="36"/>
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="Margin" Value="0,0,0,2"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="TabItem">
+            <Border x:Name="Bd" Background="#F0F0F0" BorderBrush="#A0A0A0" BorderThickness="1"
+                    Margin="0,0,0,2" CornerRadius="2" ToolTip="{TemplateBinding Header}">
+              <ContentPresenter ContentSource="Header" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsSelected" Value="True">
+                <Setter TargetName="Bd" Property="Background" Value="#D6E4F0"/>
+                <Setter TargetName="Bd" Property="BorderBrush" Value="#3A6EA5"/>
+              </Trigger>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="Bd" Property="Background" Value="#E8EEF4"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style x:Key="MapActionBtn" TargetType="Button">
+      <Setter Property="MinWidth" Value="132"/>
+      <Setter Property="Height" Value="22"/>
+      <Setter Property="Margin" Value="0,0,6,0"/>
+      <Setter Property="Padding" Value="6,1"/>
+    </Style>
+  </Window.Resources>
+
+  <DockPanel Margin="8">
+    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
+      <Button Content="OK" Width="75" Height="23" Margin="0,0,8,0" IsDefault="True" Click="OnOk"/>
+      <Button Content="Cancel" Width="75" Height="23" IsCancel="True"/>
+    </StackPanel>
+
+    <Grid>
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="85"/>
+        <RowDefinition Height="*" MinHeight="220"/>
+      </Grid.RowDefinitions>
+
+      <!-- Frame Properties — Vector FrameBasicPropertiesControl_LIN (2 rows) -->
+      <GroupBox Grid.Row="0" Header="Frame Properties" Padding="6" Margin="0,0,0,6">
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="85"/>
+            <ColumnDefinition Width="33*"/>
+            <ColumnDefinition Width="80"/>
+            <ColumnDefinition Width="33*"/>
+            <ColumnDefinition Width="105"/>
+            <ColumnDefinition Width="33*"/>
+          </Grid.ColumnDefinitions>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="28"/>
+            <RowDefinition Height="28"/>
+          </Grid.RowDefinitions>
+          <TextBlock Text="Name:" VerticalAlignment="Center"/>
+          <TextBox Grid.Column="1" Grid.ColumnSpan="3"
+                   Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Margin="2"/>
+          <TextBlock Grid.Column="4" Text="Length [Byte]:" VerticalAlignment="Center"/>
+          <TextBox Grid.Column="5" Text="{Binding Length, UpdateSourceTrigger=PropertyChanged}" Margin="2"/>
+          <TextBlock Grid.Row="1" Text="ID:" VerticalAlignment="Center"/>
+          <TextBox Grid.Row="1" Grid.Column="1"
+                   Text="{Binding IdHex, UpdateSourceTrigger=PropertyChanged}" Margin="2"/>
+        </Grid>
+      </GroupBox>
+
+      <!-- Publisher / Subscriber — Vector FrameRxTxControl (stacked rows) -->
+      <GroupBox Grid.Row="1" Header="Publisher / Subscriber Relations" Padding="6" Margin="0,0,0,6">
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="85"/>
+            <ColumnDefinition Width="*"/>
+          </Grid.ColumnDefinitions>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="28"/>
+            <RowDefinition Height="28"/>
+          </Grid.RowDefinitions>
+          <TextBlock Text="Publisher:" VerticalAlignment="Center"/>
+          <ComboBox Grid.Column="1" Margin="2"
+                    ItemsSource="{Binding PublisherOptions}"
+                    SelectedItem="{Binding Publisher, Mode=TwoWay}"/>
+          <TextBlock Grid.Row="1" Text="Subscriber(s):" VerticalAlignment="Center"/>
+          <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Subscribers, Mode=OneWay}"
+                   IsReadOnly="True" Margin="2"/>
+        </Grid>
+      </GroupBox>
+
+      <!-- Signal Mapping — Vector SignalPDUControl -->
+      <GroupBox Grid.Row="2" Header="Signal Mapping" Padding="4">
+        <DockPanel>
+          <UniformGrid DockPanel.Dock="Bottom" Rows="1" Columns="4" Margin="0,8,0,0" Height="24">
+            <Button Content="Edit Signal" Style="{StaticResource MapActionBtn}" Margin="0,0,6,0"
+                    Click="OnEditSignal" IsEnabled="{Binding HasSignalSelection}" HorizontalAlignment="Stretch"/>
+            <Button Content="Remove Signal" Style="{StaticResource MapActionBtn}" Margin="0,0,6,0"
+                    Click="OnRemoveSignal" IsEnabled="{Binding HasSignalSelection}" HorizontalAlignment="Stretch"/>
+            <Button Content="Create and Map Signal" Style="{StaticResource MapActionBtn}" Margin="0,0,6,0"
+                    Click="OnCreateAndMap" IsEnabled="{Binding CanCreateAndMap}" HorizontalAlignment="Stretch"/>
+            <Button Content="Map Existing Signal" Style="{StaticResource MapActionBtn}" Margin="0"
+                    Click="OnMapExisting" IsEnabled="{Binding CanMapExisting}" HorizontalAlignment="Stretch"/>
+          </UniformGrid>
+
+          <TabControl TabStripPlacement="Left" SelectedIndex="{Binding MapTabIndex, Mode=TwoWay}">
+            <TabItem Style="{StaticResource MapTabItem}" ToolTip="List">
+              <TabItem.Header>
+                <TextBlock Text="☰" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center"/>
+              </TabItem.Header>
+              <DataGrid x:Name="SigGrid" ItemsSource="{Binding Signals}" AutoGenerateColumns="False"
+                        IsReadOnly="True" HeadersVisibility="Column" CanUserAddRows="False"
+                        SelectedItem="{Binding SelectedSignal, Mode=TwoWay}"
+                        MouseDoubleClick="OnSignalGridDoubleClick"
+                        BorderThickness="0" RowHeight="22" ColumnHeaderHeight="24">
+                <DataGrid.Columns>
+                  <DataGridTextColumn Header="Signal" Binding="{Binding Name, Mode=OneWay}" Width="160"/>
+                  <DataGridTextColumn Header="Startbit" Binding="{Binding StartBit, Mode=OneWay}" Width="70"/>
+                  <DataGridTextColumn Header="Length [Bit]" Binding="{Binding Length, Mode=OneWay}" Width="90"/>
+                  <DataGridTextColumn Header="Publisher" Binding="{Binding Publisher, Mode=OneWay}" Width="100"/>
+                  <DataGridTextColumn Header="Subscribers" Binding="{Binding Subscribers, Mode=OneWay}" Width="*"/>
+                </DataGrid.Columns>
+              </DataGrid>
+            </TabItem>
+            <TabItem Style="{StaticResource MapTabItem}" ToolTip="Layout">
+              <TabItem.Header>
+                <TextBlock Text="▦" FontSize="14" HorizontalAlignment="Center"/>
+              </TabItem.Header>
+              <Border Background="White" Padding="4">
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                  <ctrl:LinBitLayoutControl x:Name="BitLayout" MinHeight="200"
+                      Frame="{Binding Frame}"
+                      Database="{Binding Database}"
+                      SelectedSignalIndex="{Binding SelectedSignalIndex, Mode=TwoWay}"/>
+                </ScrollViewer>
+              </Border>
+            </TabItem>
+          </TabControl>
+        </DockPanel>
+      </GroupBox>
+    </Grid>
+  </DockPanel>
+</Window>
