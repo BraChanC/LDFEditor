@@ -1204,6 +1204,9 @@ public partial class MainViewModel : ObservableObject
     {
         if (_db == null) return;
         SetDetailPane(nodes: false, frameList: false, signals: true);
+        /* Same instance after SizeBits edit would skip DP change; nudge binding so Layout rebuilds. */
+        if (ReferenceEquals(DetailFrame, frame))
+            DetailFrame = null;
         DetailFrame = frame;
         FrameListRows.Clear();
         _suppressFrameListSync = true;

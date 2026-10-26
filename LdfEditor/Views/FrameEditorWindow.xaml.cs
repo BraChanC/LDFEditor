@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.Windows;
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -26,6 +27,15 @@ public partial class FrameEditorWindow : Window
 
     private void OnOk(object sender, RoutedEventArgs e)
     {
+        if (!Vm.TryValidateForOk())
+        {
+            MessageBox.Show(this,
+                "Invalid input! For details see tooltip of the error symbol.",
+                "Warning",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            return;
+        }
         Vm.CommitToModel();
         DialogResult = true;
     }
@@ -49,7 +59,7 @@ public partial class FrameEditorWindow : Window
         var name = Vm.SelectedSignal.Name;
         _frame.Signals.RemoveAll(fs => fs.Name == name);
         Vm.RefreshSignals();
-        BitLayout.InvalidateVisual();
+        BitLayout.RefreshMapping();
 
         bool stillMapped = _db.Frames.Any(f => f.Signals.Any(fs => fs.Name == name));
         if (stillMapped) return;
@@ -163,7 +173,7 @@ public partial class FrameEditorWindow : Window
         {
             Vm.RefreshSignals();
             SelectMapped(signal.Name);
-            BitLayout.InvalidateVisual();
+            BitLayout.RefreshMapping();
             return;
         }
 
@@ -180,7 +190,7 @@ public partial class FrameEditorWindow : Window
             }
         }
         Vm.RefreshSignals();
-        BitLayout.InvalidateVisual();
+        BitLayout.RefreshMapping();
     }
 
     /// <summary>Vector MapExistingSignal: copy current frame receivers onto the signal.</summary>
@@ -209,7 +219,7 @@ public partial class FrameEditorWindow : Window
         {
             Vm.RefreshSignals();
             SelectMapped(sg.Name);
-            BitLayout.InvalidateVisual();
+            BitLayout.RefreshMapping();
         }
     }
 
@@ -235,6 +245,12 @@ public partial class FrameEditorVm : ObservableObject
     [ObservableProperty] private string _length = "";
     [ObservableProperty] private string _idHex = "";
     [ObservableProperty] private string _publisher = "";
+    [ObservableProperty] private bool _hasNameError;
+    [ObservableProperty] private string _nameErrorTooltip = "";
+    [ObservableProperty] private bool _hasIdError;
+    [ObservableProperty] private string _idErrorTooltip = "";
+    [ObservableProperty] private bool _hasLengthError;
+    [ObservableProperty] private string _lengthErrorTooltip = "";
     [ObservableProperty] private FrameSignalRow? _selectedSignal;
     [ObservableProperty] private int _selectedSignalIndex = -1;
     [ObservableProperty] private int _mapTabIndex;
@@ -261,6 +277,105 @@ public partial class FrameEditorVm : ObservableObject
             if (!PublisherOptions.Contains(s)) PublisherOptions.Add(s);
 
         RefreshSignals();
+        ValidateIdentity();
+    }
+
+    partial void OnNameChanged(string value)
+    {
+        if (!_loading) ValidateIdentity();
+    }
+
+    partial void OnIdHexChanged(string value)
+    {
+        if (!_loading) ValidateIdentity();
+    }
+
+    partial void OnLengthChanged(string value)
+    {
+        if (!_loading) ValidateIdentity();
+    }
+
+    public bool TryValidateForOk()
+    {
+        ValidateIdentity();
+        return !HasNameError && !HasIdError && !HasLengthError;
+    }
+
+    /// <summary>Vector ErrorProvider on Name / ID / Length.</summary>
+    public void ValidateIdentity()
+    {
+        ClearNameError();
+        ClearIdError();
+        ClearLengthError();
+
+        var name = (Name ?? "").Trim();
+        if (!string.IsNullOrEmpty(name) && IsNameTaken(name))
+            SetNameError("Frame Name not unique");
+
+        if (TryParseFrameId(IdHex, out var id) && IsIdTaken(id))
+            SetIdError("Frame ID Not Unique");
+
+        if (!int.TryParse((Length ?? "").Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var len)
+            || len < 1 || len > 8)
+            SetLengthError("Frame Length must be <= 8");
+    }
+
+    private bool IsNameTaken(string name) =>
+        Database.Frames.Any(f => !ReferenceEquals(f, Frame)
+                                 && string.Equals(f.Name, name, StringComparison.OrdinalIgnoreCase))
+        || Database.EventTriggeredFrames.Any(e =>
+            string.Equals(e.Name, name, StringComparison.OrdinalIgnoreCase))
+        || Database.SporadicFrames.Any(s =>
+            string.Equals(s.Name, name, StringComparison.OrdinalIgnoreCase));
+
+    private bool IsIdTaken(int id) =>
+        Database.Frames.Any(f => !ReferenceEquals(f, Frame) && f.Id == id)
+        || Database.EventTriggeredFrames.Any(e => e.Id == id);
+
+    private static bool TryParseFrameId(string? text, out int id)
+    {
+        id = 0;
+        var t = (text ?? "").Trim();
+        if (t.Length == 0) return false;
+        if (t.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+            return int.TryParse(t[2..], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out id);
+        return int.TryParse(t, NumberStyles.Integer, CultureInfo.InvariantCulture, out id);
+    }
+
+    private void SetNameError(string tip)
+    {
+        HasNameError = true;
+        NameErrorTooltip = tip;
+    }
+
+    private void ClearNameError()
+    {
+        HasNameError = false;
+        NameErrorTooltip = "";
+    }
+
+    private void SetIdError(string tip)
+    {
+        HasIdError = true;
+        IdErrorTooltip = tip;
+    }
+
+    private void ClearIdError()
+    {
+        HasIdError = false;
+        IdErrorTooltip = "";
+    }
+
+    private void SetLengthError(string tip)
+    {
+        HasLengthError = true;
+        LengthErrorTooltip = tip;
+    }
+
+    private void ClearLengthError()
+    {
+        HasLengthError = false;
+        LengthErrorTooltip = "";
     }
 
     /// <summary>Frame sender used for Create/Map (UI Publisher, then Frame, then Master).</summary>
@@ -296,25 +411,18 @@ public partial class FrameEditorVm : ObservableObject
     public void CommitToModel()
     {
         var newName = (Name ?? "").Trim();
-        if (!string.IsNullOrEmpty(newName) && newName != Frame.Name
-            && !Database.Frames.Any(f => f != Frame && f.Name == newName))
+        if (!string.IsNullOrEmpty(newName) && newName != Frame.Name && !IsNameTaken(newName))
         {
             foreach (var t in Database.Schedules)
                 foreach (var slot in t.Slots)
                     if (slot.FrameName == Frame.Name) slot.FrameName = newName;
             Frame.Name = newName;
         }
-        if (int.TryParse(Length?.Trim(), out var len) && len > 0)
+        if (int.TryParse(Length?.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var len)
+            && len is >= 1 and <= 8)
             Frame.Length = len;
-        var idText = (IdHex ?? "").Trim();
-        if (idText.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
-        {
-            if (int.TryParse(idText[2..], System.Globalization.NumberStyles.HexNumber,
-                    System.Globalization.CultureInfo.InvariantCulture, out var id))
-                Frame.Id = id;
-        }
-        else if (int.TryParse(idText, out var idDec))
-            Frame.Id = idDec;
+        if (TryParseFrameId(IdHex, out var id) && !IsIdTaken(id))
+            Frame.Id = id;
 
         /* OK also persists publisher (ComboBox already applied live). */
         ApplyPublisher(Publisher, refreshUi: false);

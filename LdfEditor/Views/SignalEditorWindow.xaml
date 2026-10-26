@@ -284,7 +284,28 @@
             <ColumnDefinition Width="20*"/>
           </Grid.ColumnDefinitions>
           <TextBlock Text="{Binding PositionLabel, Mode=OneWay}" VerticalAlignment="Center"/>
-          <TextBox Grid.Column="1" Text="{Binding StartBit, UpdateSourceTrigger=PropertyChanged}" Margin="10,2,2,2"/>
+          <!-- Vector ErrorProvider: warning glyph inside left of Position textbox -->
+          <Grid Grid.Column="1" Margin="10,2,2,2">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="Auto"/>
+              <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Border Grid.Column="0" Width="16" Height="16" Margin="0,0,6,0"
+                    VerticalAlignment="Center" Background="Transparent" Cursor="Help"
+                    Visibility="{Binding HasPositionError, Converter={StaticResource BoolToVis}}"
+                    ToolTip="{Binding PositionErrorTooltip}">
+              <Viewbox Stretch="Uniform">
+                <Canvas Width="16" Height="16">
+                  <Path Fill="#FFFFC107" Stroke="#FFB71C1C" StrokeThickness="0.8"
+                        Data="M8,1.5 L14.5,14 L1.5,14 Z"/>
+                  <TextBlock Canvas.Left="5.2" Canvas.Top="5.5" Text="!" FontSize="8"
+                             FontWeight="Bold" FontFamily="Tahoma" Foreground="#FFB71C1C"/>
+                </Canvas>
+              </Viewbox>
+            </Border>
+            <TextBox Grid.Column="1" Text="{Binding StartBit, UpdateSourceTrigger=PropertyChanged}"
+                     VerticalContentAlignment="Center"/>
+          </Grid>
           <TextBlock Grid.Column="2" Text="Byte Order:" VerticalAlignment="Center" Margin="12,0,0,0"/>
           <ComboBox Grid.Column="3" IsEnabled="False"
                     ItemsSource="{Binding ByteOrders}" SelectedItem="{Binding ByteOrder, Mode=OneWay}"/>

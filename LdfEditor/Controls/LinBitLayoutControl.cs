@@ -70,8 +70,17 @@ public sealed class LinBitLayoutControl : FrameworkElement
     private static void OnFrameChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         var c = (LinBitLayoutControl)d;
-        c.Rebuild();
-        c.InvalidateVisual();
+        c.RefreshMapping();
+    }
+
+    /// <summary>
+    /// Rebuild bit→signal ownership from current Frame/Database (SizeBits, start bits, map list).
+    /// Call after editing a signal so hatch/colors span the new length.
+    /// </summary>
+    public void RefreshMapping()
+    {
+        Rebuild();
+        InvalidateVisual();
     }
 
     private void Rebuild()
@@ -151,6 +160,8 @@ public sealed class LinBitLayoutControl : FrameworkElement
     protected override void OnRender(DrawingContext dc)
     {
         base.OnRender(dc);
+        /* Always rebuild so SizeBits / StartBit edits show up (Frame DP often unchanged). */
+        Rebuild();
         var w = ActualWidth > 0 ? ActualWidth : 480;
         var h = ActualHeight > 0 ? ActualHeight : 220;
         dc.DrawRectangle(Brushes.White, null, new Rect(0, 0, w, h));
@@ -315,6 +326,7 @@ public sealed class LinBitLayoutControl : FrameworkElement
 
     private int HitTest(Point pt)
     {
+        Rebuild();
         if (_bytes <= 0) return -1;
         RecalcMetrics(new Size(ActualWidth, ActualHeight));
         if (pt.Y < _y2 || pt.Y >= _y3) return -1;

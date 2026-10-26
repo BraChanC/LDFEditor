@@ -7,6 +7,7 @@
         MinWidth="640" MinHeight="460" FontFamily="Tahoma" FontSize="11">
   <!-- Layout mirrored from Vector FrameDialogMainControl (LIN): Props / RxTx / Mapped Signals. -->
   <Window.Resources>
+    <BooleanToVisibilityConverter x:Key="BoolToVis"/>
     <Style x:Key="MapTabItem" TargetType="TabItem">
       <Setter Property="Width" Value="36"/>
       <Setter Property="Height" Value="36"/>
@@ -69,13 +70,69 @@
             <RowDefinition Height="28"/>
           </Grid.RowDefinitions>
           <TextBlock Text="Name:" VerticalAlignment="Center"/>
-          <TextBox Grid.Column="1" Grid.ColumnSpan="3"
-                   Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Margin="2"/>
+          <!-- Vector ErrorProvider: red ! inside Name when not unique -->
+          <Grid Grid.Column="1" Grid.ColumnSpan="3" Margin="2">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="Auto"/>
+              <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Border Grid.Column="0" Width="16" Height="16" Margin="0,0,6,0"
+                    VerticalAlignment="Center" Background="Transparent" Cursor="Help"
+                    Visibility="{Binding HasNameError, Converter={StaticResource BoolToVis}}"
+                    ToolTip="{Binding NameErrorTooltip}">
+              <Viewbox Stretch="Uniform">
+                <Canvas Width="16" Height="16">
+                  <Ellipse Width="14" Height="14" Canvas.Left="1" Canvas.Top="1" Fill="#FFE53935"/>
+                  <TextBlock Canvas.Left="5.4" Canvas.Top="1.2" Text="!" FontSize="10"
+                             FontWeight="Bold" FontFamily="Tahoma" Foreground="White"/>
+                </Canvas>
+              </Viewbox>
+            </Border>
+            <TextBox Grid.Column="1" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}"
+                     VerticalContentAlignment="Center"/>
+          </Grid>
           <TextBlock Grid.Column="4" Text="Length [Byte]:" VerticalAlignment="Center"/>
-          <TextBox Grid.Column="5" Text="{Binding Length, UpdateSourceTrigger=PropertyChanged}" Margin="2"/>
+          <Grid Grid.Column="5" Margin="2">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="Auto"/>
+              <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Border Grid.Column="0" Width="16" Height="16" Margin="0,0,6,0"
+                    VerticalAlignment="Center" Background="Transparent" Cursor="Help"
+                    Visibility="{Binding HasLengthError, Converter={StaticResource BoolToVis}}"
+                    ToolTip="{Binding LengthErrorTooltip}">
+              <Viewbox Stretch="Uniform">
+                <Canvas Width="16" Height="16">
+                  <Ellipse Width="14" Height="14" Canvas.Left="1" Canvas.Top="1" Fill="#FFE53935"/>
+                  <TextBlock Canvas.Left="5.4" Canvas.Top="1.2" Text="!" FontSize="10"
+                             FontWeight="Bold" FontFamily="Tahoma" Foreground="White"/>
+                </Canvas>
+              </Viewbox>
+            </Border>
+            <TextBox Grid.Column="1" Text="{Binding Length, UpdateSourceTrigger=PropertyChanged}"
+                     VerticalContentAlignment="Center"/>
+          </Grid>
           <TextBlock Grid.Row="1" Text="ID:" VerticalAlignment="Center"/>
-          <TextBox Grid.Row="1" Grid.Column="1"
-                   Text="{Binding IdHex, UpdateSourceTrigger=PropertyChanged}" Margin="2"/>
+          <Grid Grid.Row="1" Grid.Column="1" Margin="2">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="Auto"/>
+              <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Border Grid.Column="0" Width="16" Height="16" Margin="0,0,6,0"
+                    VerticalAlignment="Center" Background="Transparent" Cursor="Help"
+                    Visibility="{Binding HasIdError, Converter={StaticResource BoolToVis}}"
+                    ToolTip="{Binding IdErrorTooltip}">
+              <Viewbox Stretch="Uniform">
+                <Canvas Width="16" Height="16">
+                  <Ellipse Width="14" Height="14" Canvas.Left="1" Canvas.Top="1" Fill="#FFE53935"/>
+                  <TextBlock Canvas.Left="5.4" Canvas.Top="1.2" Text="!" FontSize="10"
+                             FontWeight="Bold" FontFamily="Tahoma" Foreground="White"/>
+                </Canvas>
+              </Viewbox>
+            </Border>
+            <TextBox Grid.Column="1" Text="{Binding IdHex, UpdateSourceTrigger=PropertyChanged}"
+                     VerticalContentAlignment="Center"/>
+          </Grid>
         </Grid>
       </GroupBox>
 

@@ -21,6 +21,15 @@ public partial class SignalEditorWindow : Window
 
     private void OnOk(object sender, RoutedEventArgs e)
     {
+        if (!_vm.TryValidateForOk())
+        {
+            MessageBox.Show(this,
+                "Invalid input! For details see tooltip of the error symbol.",
+                "Warning",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            return;
+        }
         _vm.CommitToModel();
         DialogResult = true;
     }
@@ -58,6 +67,8 @@ public partial class SignalEditorVm : ObservableObject
     [ObservableProperty] private string _length = "";
     [ObservableProperty] private string _initValue = "";
     [ObservableProperty] private string _startBit = "";
+    [ObservableProperty] private bool _hasPositionError;
+    [ObservableProperty] private string _positionErrorTooltip = "";
     [ObservableProperty] private string _selectedEncodingName = "<None>";
     [ObservableProperty] private int _encodingPage;
     [ObservableProperty] private bool _canEditEncoding;
@@ -144,6 +155,81 @@ public partial class SignalEditorVm : ObservableObject
         _loading = false;
         LoadEncodingUi(SelectedEncodingName);
         RefreshEncodingCommands();
+        ValidatePosition();
+    }
+
+    partial void OnLengthChanged(string value)
+    {
+        if (!_loading) ValidatePosition();
+    }
+
+    partial void OnStartBitChanged(string value)
+    {
+        if (!_loading) ValidatePosition();
+    }
+
+    /// <summary>Vector ErrorProvider on Position: overlap / out-of-frame before OK.</summary>
+    public bool TryValidateForOk()
+    {
+        ValidatePosition();
+        return !HasPositionError;
+    }
+
+    public void ValidatePosition()
+    {
+        HasPositionError = false;
+        PositionErrorTooltip = "";
+
+        if (string.IsNullOrEmpty(_frameName))
+            return;
+
+        if (!int.TryParse(StartBit?.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var start)
+            || start < 0)
+        {
+            SetPositionError("Invalid start bit.");
+            return;
+        }
+
+        if (!int.TryParse(Length?.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var len)
+            || len < 1)
+        {
+            SetPositionError("Invalid signal length.");
+            return;
+        }
+
+        var fr = _db.FindFrame(_frameName);
+        if (fr == null) return;
+
+        int capacity = Math.Max(1, fr.Length) * 8;
+        if (start >= capacity || start + len > capacity)
+        {
+            SetPositionError($"Signal exceeds frame size ({fr.Length} byte(s)).");
+            return;
+        }
+
+        foreach (var fs in fr.Signals)
+        {
+            if (IsSelfMapping(fs.Name)) continue;
+            var other = _db.FindSignal(fs.Name);
+            int otherLen = other?.SizeBits > 0 ? other.SizeBits : 1;
+            int otherStart = fs.StartBit;
+            if (start < otherStart + otherLen && otherStart < start + len)
+            {
+                SetPositionError($"Overlapping with Mapped Signal <{fs.Name}>");
+                return;
+            }
+        }
+    }
+
+    private bool IsSelfMapping(string mappedName) =>
+        string.Equals(mappedName, _signal.Name, StringComparison.OrdinalIgnoreCase)
+        || string.Equals(mappedName, _originalName, StringComparison.OrdinalIgnoreCase)
+        || string.Equals(mappedName, (Name ?? "").Trim(), StringComparison.OrdinalIgnoreCase);
+
+    private void SetPositionError(string tooltip)
+    {
+        HasPositionError = true;
+        PositionErrorTooltip = tooltip;
     }
 
     partial void OnSignalTypeChanged(string value)
