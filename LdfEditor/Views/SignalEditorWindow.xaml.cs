@@ -69,6 +69,8 @@ public partial class SignalEditorVm : ObservableObject
     [ObservableProperty] private string _startBit = "";
     [ObservableProperty] private bool _hasPositionError;
     [ObservableProperty] private string _positionErrorTooltip = "";
+    [ObservableProperty] private bool _hasInitError;
+    [ObservableProperty] private string _initErrorTooltip = "";
     [ObservableProperty] private string _selectedEncodingName = "<None>";
     [ObservableProperty] private int _encodingPage;
     [ObservableProperty] private bool _canEditEncoding;
@@ -108,6 +110,7 @@ public partial class SignalEditorVm : ObservableObject
         Length = s.SizeBits.ToString(CultureInfo.InvariantCulture);
         InitValue = FormatInit(s.InitValue);
         _loading = false;
+        ValidateInitValue();
         Publisher = s.Publisher;
         ByteOrder = db.IsMotorolaByteOrder ? "Motorola" : "Intel";
 
@@ -160,7 +163,14 @@ public partial class SignalEditorVm : ObservableObject
 
     partial void OnLengthChanged(string value)
     {
-        if (!_loading) ValidatePosition();
+        if (_loading) return;
+        ValidatePosition();
+        ValidateInitValue();
+    }
+
+    partial void OnInitValueChanged(string value)
+    {
+        if (!_loading) ValidateInitValue();
     }
 
     partial void OnStartBitChanged(string value)
@@ -172,7 +182,8 @@ public partial class SignalEditorVm : ObservableObject
     public bool TryValidateForOk()
     {
         ValidatePosition();
-        return !HasPositionError;
+        ValidateInitValue();
+        return !HasPositionError && !HasInitError;
     }
 
     public void ValidatePosition()
@@ -262,6 +273,7 @@ public partial class SignalEditorVm : ObservableObject
                 InitValue = FormatInit(first);
             }
         }
+        if (!_loading) ValidateInitValue();
     }
 
     private void UpdateTypeFlags()
@@ -579,9 +591,13 @@ public partial class SignalEditorVm : ObservableObject
         _db.Encodings.Add(new LdfEncoding { Name = name });
         RebuildEncodingList();
         SelectedEncodingName = name;
+        var signalName = string.IsNullOrWhiteSpace(Name) ? _originalName : Name.Trim();
         MessageBox.Show(_owner,
-            $"Encoding type '{name}' created and assigned to signal '{Name}'.",
-            "Create", MessageBoxButton.OK, MessageBoxImage.Information);
+            $"New Encoding Type <{name}> created and assigned to Signal <{signalName}>.\n\n" +
+            "Add physical and/or logical Encodings using the tab pages below.",
+            "Info",
+            MessageBoxButton.OK,
+            MessageBoxImage.Information);
     }
 
     [RelayCommand(CanExecute = nameof(CanMutateEncoding))]
@@ -805,6 +821,70 @@ public partial class SignalEditorVm : ObservableObject
         AddPhysicalRowCommand.NotifyCanExecuteChanged();
     }
 
+    /// <summary>Scalar initial value is 0x plus hex digits, and must fit in Length [Bit].</summary>
+    private void ValidateInitValue()
+    {
+        HasInitError = false;
+        InitErrorTooltip = "";
+        var init = (InitValue ?? "").Trim();
+        if (init.Length == 0) return;
+
+        if (IsByteArrayType)
+        {
+            if (!IsValidByteArrayInit(init))
+                SetInitError("Initial value must be a byte array of hexadecimal values, e.g. {0x00, 0x01}.");
+            return;
+        }
+
+        if (!TryParseScalarInit(init, out var value))
+        {
+            SetInitError("Initial value must be a hexadecimal number, e.g. 0x0.");
+            return;
+        }
+
+        if (int.TryParse(Length?.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var bits)
+            && bits is > 0 and <= 63
+            && value > (1UL << bits) - 1)
+            SetInitError($"Initial value does not fit in {bits} bit(s). Use a hexadecimal value (0x).");
+    }
+
+    private void SetInitError(string tooltip)
+    {
+        HasInitError = true;
+        InitErrorTooltip = tooltip;
+    }
+
+    private static bool TryParseScalarInit(string init, out ulong value)
+    {
+        value = 0;
+        if (!init.StartsWith("0x", StringComparison.OrdinalIgnoreCase) || init.Length < 3)
+            return false;
+        foreach (var c in init[2..])
+        {
+            if (!Uri.IsHexDigit(c)) return false;
+        }
+        return ulong.TryParse(init[2..], NumberStyles.HexNumber, CultureInfo.InvariantCulture, out value);
+    }
+
+    private static bool IsValidByteArrayInit(string init)
+    {
+        var text = init.Trim();
+        if (text.StartsWith('{') && text.EndsWith('}'))
+            text = text[1..^1];
+        var parts = text.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (parts.Length == 0) return false;
+        foreach (var p in parts)
+        {
+            ulong n;
+            var hex = TryParseScalarInit(p, out n);
+            var dec = !hex && p.All(char.IsDigit)
+                      && ulong.TryParse(p, NumberStyles.Integer, CultureInfo.InvariantCulture, out n);
+            if (!hex && !dec) return false;
+            if (n > 255) return false;
+        }
+        return true;
+    }
+
     private static bool TryParseLong(string? s, out long v)
     {
         v = 0;
@@ -824,12 +904,13 @@ public partial class SignalEditorVm : ObservableObject
 
     private static string FormatInit(string init)
     {
-        if (string.IsNullOrEmpty(init)) return "0";
+        if (string.IsNullOrEmpty(init)) return "0x0";
         if (init.StartsWith('{')) return init;
-        if (int.TryParse(init, NumberStyles.Integer, CultureInfo.InvariantCulture, out var n) && n <= 9)
-            return n.ToString(CultureInfo.InvariantCulture);
-        if (init.StartsWith("0x", StringComparison.OrdinalIgnoreCase)) return init;
-        if (int.TryParse(init, NumberStyles.Integer, CultureInfo.InvariantCulture, out var v))
+        if (init.StartsWith("0x", StringComparison.OrdinalIgnoreCase)
+            && init.Length > 2
+            && init[2..].All(Uri.IsHexDigit))
+            return init;
+        if (ulong.TryParse(init, NumberStyles.Integer, CultureInfo.InvariantCulture, out var v))
             return "0x" + v.ToString("X", CultureInfo.InvariantCulture);
         return init;
     }

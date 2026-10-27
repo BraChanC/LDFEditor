@@ -27,8 +27,8 @@
 
   <!-- Shared UI / models / services from original LdfEditor (no ANTLR). -->
   <ItemGroup>
-    <Compile Include="..\LdfEditor\App.xaml.cs" Link="App.xaml.cs" />
-    <Compile Include="..\LdfEditor\MainWindow.xaml.cs" Link="MainWindow.xaml.cs" />
+    <Compile Include="..\LdfEditor\App.xaml.cs" Link="App.xaml.cs" DependentUpon="App.xaml" />
+    <Compile Include="..\LdfEditor\MainWindow.xaml.cs" Link="MainWindow.xaml.cs" DependentUpon="MainWindow.xaml" />
     <Compile Include="..\LdfEditor\AssemblyInfo.cs" Link="AssemblyInfo.cs" Condition="Exists('..\LdfEditor\AssemblyInfo.cs')" />
     <Compile Include="..\LdfEditor\Controls\**\*.cs" Link="Controls\%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Include="..\LdfEditor\Converters\**\*.cs" Link="Converters\%(RecursiveDir)%(Filename)%(Extension)" />
@@ -41,9 +41,15 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ApplicationDefinition Include="..\LdfEditor\App.xaml" Link="App.xaml" />
-    <Page Include="..\LdfEditor\MainWindow.xaml" Link="MainWindow.xaml" />
-    <Page Include="..\LdfEditor\Views\**\*.xaml" Link="Views\%(RecursiveDir)%(Filename)%(Extension)" />
+    <ApplicationDefinition Include="..\LdfEditor\App.xaml" Link="App.xaml"
+                           Generator="MSBuild:Compile" />
+    <Page Include="..\LdfEditor\MainWindow.xaml" Link="MainWindow.xaml"
+          Generator="MSBuild:Compile" />
+    <Page Include="..\LdfEditor\Views\**\*.xaml" Link="Views\%(RecursiveDir)%(Filename)%(Extension)"
+          Generator="MSBuild:Compile" />
   </ItemGroup>
+
+  <!-- Stale obj FileList can reference *.g.cs before MarkupCompile; always regenerate markup first. -->
+  <Target Name="EnsureLinkedWpfMarkup" BeforeTargets="BeforeCompile" DependsOnTargets="MarkupCompilePass1" />
 
 </Project>
