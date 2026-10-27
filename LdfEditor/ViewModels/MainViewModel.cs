@@ -74,6 +74,8 @@ public partial class MainViewModel : ObservableObject
 
     partial void OnSelectedScheduleRowChanged(ScheduleRow? value)
     {
+        foreach (var r in EnumerateScheduleRows())
+            r.IsSelected = ReferenceEquals(r, value);
         FillScheduleSelection(value);
         NotifyEditCommands();
     }
@@ -132,7 +134,8 @@ public partial class MainViewModel : ObservableObject
         _suppressSigSync = false;
         var sg = _db.FindSignal(value.Name);
         if (sg != null)
-            LdfPropertyBuilder.FillSignal(_db, sg, BusProps, value.StartBit, DetailFrame.Name);
+            LdfPropertyBuilder.FillSignal(_db, sg, BusProps, value.StartBit, DetailFrame.Name,
+                OnSignalPropCommit);
     }
 
     partial void OnSelectedSignalIndexChanged(int value)
@@ -160,7 +163,8 @@ public partial class MainViewModel : ObservableObject
             var fs = DetailFrame.Signals[value];
             var sg = _db.FindSignal(fs.Name);
             if (sg != null)
-                LdfPropertyBuilder.FillSignal(_db, sg, BusProps, fs.StartBit, DetailFrame.Name);
+                LdfPropertyBuilder.FillSignal(_db, sg, BusProps, fs.StartBit, DetailFrame.Name,
+                    OnSignalPropCommit);
         }
     }
 
@@ -384,7 +388,7 @@ public partial class MainViewModel : ObservableObject
         if (dlg.ShowDialog() != true) return;
         _db.Schedules.Add(new LdfScheduleTable { Name = dlg.ResultName });
         MarkDirtyAndRefresh();
-        SelectedScheduleRow = ScheduleRows.FirstOrDefault(r => r.IsHeader && r.Table == dlg.ResultName);
+        SelectedScheduleRow = ScheduleRows.FirstOrDefault(r => r.Table == dlg.ResultName);
     }
 
     [RelayCommand(CanExecute = nameof(CanMutateDocument))]
@@ -469,6 +473,32 @@ public partial class MainViewModel : ObservableObject
         if (_db == null) return;
         if (SelectedTreeItem?.Payload is LdfFrame frame)
         {
+            /* Vector: deleting a child under ETF/SP removes association only. */
+            var etParent = SelectedTreeItem.FindAncestor("Event");
+            if (etParent?.Payload is LdfEventTriggeredFrame etAssoc)
+            {
+                if (!AskYes(string.Format(
+                        "Do you really want to delete the association between the Event-Triggered Frame <{0}> and the Unconditional Frame <{1}>?",
+                        etAssoc.Name, frame.Name)))
+                    return;
+                etAssoc.FrameNames.RemoveAll(n =>
+                    string.Equals(n, frame.Name, StringComparison.OrdinalIgnoreCase));
+                MarkDirtyAndRefresh();
+                return;
+            }
+            var spParent = SelectedTreeItem.FindAncestor("Sporadic");
+            if (spParent?.Payload is LdfSporadicFrame spAssoc)
+            {
+                if (!AskYes(string.Format(
+                        "Do you really want to delete the association between the Sporadic Frame <{0}> and the Unconditional Frame <{1}>?",
+                        spAssoc.Name, frame.Name)))
+                    return;
+                spAssoc.FrameNames.RemoveAll(n =>
+                    string.Equals(n, frame.Name, StringComparison.OrdinalIgnoreCase));
+                MarkDirtyAndRefresh();
+                return;
+            }
+
             if (!AskYes(string.Format(
                     "Do you really want to delete Unconditional Frame <{0}> ?", frame.Name)))
                 return;
@@ -805,7 +835,8 @@ public partial class MainViewModel : ObservableObject
             if (srow.IsHeader || srow.EntryIndex < 0)
                 LdfPropertyBuilder.FillScheduleTable(_db, srow.ScheduleIndex, ScheduleProps);
             else
-                LdfPropertyBuilder.FillScheduleSlot(_db, srow.ScheduleIndex, srow.EntryIndex, ScheduleProps);
+                LdfPropertyBuilder.FillScheduleSlot(_db, srow.ScheduleIndex, srow.EntryIndex, ScheduleProps,
+                    OnSchedulePropCommit);
         }
 
         if (SelectedFrameSignal != null)
@@ -815,7 +846,8 @@ public partial class MainViewModel : ObservableObject
             {
                 LdfPropertyBuilder.FillSignal(_db, sg, BusProps,
                     DetailFrame != null ? SelectedFrameSignal.StartBit : null,
-                    DetailFrame?.Name);
+                    DetailFrame?.Name,
+                    OnSignalPropCommit);
                 return;
             }
         }
@@ -839,17 +871,17 @@ public partial class MainViewModel : ObservableObject
         }
         if (SelectedTreeItem?.Payload is LdfEventTriggeredFrame et)
         {
-            LdfPropertyBuilder.FillEventTriggered(et, BusProps);
+            LdfPropertyBuilder.FillEventTriggered(_db, et, BusProps);
             return;
         }
         if (SelectedTreeItem?.Payload is LdfSporadicFrame sp)
         {
-            LdfPropertyBuilder.FillSporadic(sp, BusProps);
+            LdfPropertyBuilder.FillSporadic(_db, sp, BusProps);
             return;
         }
         if (SelectedTreeItem?.Payload is LdfSignal sig)
         {
-            LdfPropertyBuilder.FillSignal(_db, sig, BusProps);
+            LdfPropertyBuilder.FillSignal(_db, sig, BusProps, onCommit: OnSignalPropCommit);
             return;
         }
         if (DetailFrame != null)
@@ -915,14 +947,11 @@ public partial class MainViewModel : ObservableObject
         FillNodes();
         if (schedKey is { } key)
         {
-            SelectedScheduleRow = ScheduleRows.FirstOrDefault(r =>
-                r.ScheduleIndex == key.Si
-                && r.EntryIndex == key.Ei
-                && r.IsHeader == key.Header)
-                ?? ScheduleRows.FirstOrDefault(r => r.IsHeader);
+            SelectedScheduleRow = FindScheduleRow(key.Si, key.Ei, key.Header)
+                                  ?? ScheduleRows.FirstOrDefault();
         }
         else
-            SelectedScheduleRow = ScheduleRows.FirstOrDefault(r => r.IsHeader);
+            SelectedScheduleRow = ScheduleRows.FirstOrDefault();
         if (SelectedTreeItem != null)
             FillTreeSelection(SelectedTreeItem);
         else if (SelectedScheduleRow != null)
@@ -1100,8 +1129,7 @@ public partial class MainViewModel : ObservableObject
         SelectedNodeRow = null;
         SelectedFrameListRow = null;
         SelectedFrameSignal = null;
-        SelectedScheduleRow = ScheduleRows.FirstOrDefault(r => r.IsHeader)
-                              ?? ScheduleRows.FirstOrDefault();
+        SelectedScheduleRow = ScheduleRows.FirstOrDefault();
         if (SelectedScheduleRow == null)
         {
             ScheduleProps.Clear();
@@ -1234,6 +1262,7 @@ public partial class MainViewModel : ObservableObject
         SelectedSignalIndex = -1;
         SelectedFrameSignal = null;
         _suppressSigSync = false;
+        ApplyFrameSignalStartbitErrors();
     }
 
     private void ShowDetailSignalList(string title, IEnumerable<LdfSignal> signals)
@@ -1326,7 +1355,7 @@ public partial class MainViewModel : ObservableObject
                 _suppressSigSync = false;
                 var sg = _db.FindSignal(row.Name);
                 if (sg != null)
-                    LdfPropertyBuilder.FillSignal(_db, sg, BusProps, null, null);
+                    LdfPropertyBuilder.FillSignal(_db, sg, BusProps, null, null, OnSignalPropCommit);
             }
         }
         finally
@@ -1460,19 +1489,24 @@ public partial class MainViewModel : ObservableObject
 
     private void FillSchedules()
     {
+        var expandState = new Dictionary<int, bool>();
+        foreach (var r in ScheduleRows)
+            expandState[r.ScheduleIndex] = r.IsExpanded;
+
         ScheduleRows.Clear();
         if (_db == null) return;
         for (int si = 0; si < _db.Schedules.Count; si++)
         {
             var t = _db.Schedules[si];
-            ScheduleRows.Add(new ScheduleRow
+            var header = new ScheduleRow
             {
                 Table = t.Name,
                 IsHeader = true,
                 ScheduleIndex = si,
                 EntryIndex = -1,
-                Payload = t
-            });
+                Payload = t,
+                IsExpanded = expandState.TryGetValue(si, out var exp) ? exp : true
+            };
             for (int ei = 0; ei < t.Slots.Count; ei++)
             {
                 var s = t.Slots[ei];
@@ -1480,12 +1514,9 @@ public partial class MainViewModel : ObservableObject
                 double tMin = LdfPropertyBuilder.CalcLinFrameTimeMs(_db, nbytes);
                 double tMax = LdfPropertyBuilder.CalcLinFrameTimeMaxMs(_db, nbytes);
                 LdfPropertyBuilder.CalcSlotPeriodMinMax(_db, si, ei, out var pMin, out var pMax);
-                var label = string.IsNullOrEmpty(s.FrameName)
-                    ? LdfPropertyBuilder.StripScheduleCommand(s.Command)
-                    : s.FrameName;
-                ScheduleRows.Add(new ScheduleRow
+                header.Children.Add(new ScheduleRow
                 {
-                    Table = "    " + label,
+                    Table = FormatScheduleSlotLabel(_db, s),
                     Type = s.Type,
                     Delay = s.DelayMs.ToString("0.00", CultureInfo.InvariantCulture),
                     MaxFrame = tMax.ToString("0.00", CultureInfo.InvariantCulture),
@@ -1496,7 +1527,46 @@ public partial class MainViewModel : ObservableObject
                     Payload = s
                 });
             }
+            ScheduleRows.Add(header);
         }
+    }
+
+    /// <summary>Vector first column: frame/command display name with ID, e.g. MasterReq (0x3C).</summary>
+    private static string FormatScheduleSlotLabel(LdfDatabase db, LdfScheduleSlot s)
+    {
+        var name = string.IsNullOrEmpty(s.FrameName)
+            ? LdfPropertyBuilder.StripScheduleCommand(s.Command)
+            : s.FrameName;
+        if (string.IsNullOrEmpty(name)) return s.Type;
+
+        var fr = db.FindFrame(name);
+        if (fr != null)
+            return $"{name}  ({LdfDisplayFormat.FormatId(fr.Id)})";
+
+        var et = db.EventTriggeredFrames.FirstOrDefault(e =>
+            string.Equals(e.Name, name, StringComparison.OrdinalIgnoreCase));
+        if (et != null)
+            return $"{name}  ({LdfDisplayFormat.FormatId(et.Id)})";
+
+        return name;
+    }
+
+    private IEnumerable<ScheduleRow> EnumerateScheduleRows()
+    {
+        foreach (var h in ScheduleRows)
+        {
+            yield return h;
+            foreach (var c in h.Children)
+                yield return c;
+        }
+    }
+
+    private ScheduleRow? FindScheduleRow(int scheduleIndex, int entryIndex, bool header)
+    {
+        var root = ScheduleRows.FirstOrDefault(r => r.ScheduleIndex == scheduleIndex);
+        if (root == null) return null;
+        if (header || entryIndex < 0) return root;
+        return root.Children.FirstOrDefault(c => c.EntryIndex == entryIndex);
     }
 
     private void FillNodes()
@@ -1657,7 +1727,7 @@ public partial class MainViewModel : ObservableObject
                 if (FrameListRows.Count > 0)
                     SelectIndex0AndFillObjectProps();
                 else
-                    LdfPropertyBuilder.FillEventTriggered(et, BusProps);
+                    LdfPropertyBuilder.FillEventTriggered(_db, et, BusProps);
                 return;
             }
 
@@ -1671,7 +1741,7 @@ public partial class MainViewModel : ObservableObject
                 if (FrameListRows.Count > 0)
                     SelectIndex0AndFillObjectProps();
                 else
-                    LdfPropertyBuilder.FillSporadic(sp, BusProps);
+                    LdfPropertyBuilder.FillSporadic(_db, sp, BusProps);
                 return;
             }
         }
@@ -1687,7 +1757,7 @@ public partial class MainViewModel : ObservableObject
                 _suppressNodeSync = true;
                 SelectedNodeRow = NodeRows.FirstOrDefault();
                 _suppressNodeSync = false;
-                LdfPropertyBuilder.FillSignal(_db, s, BusProps);
+                LdfPropertyBuilder.FillSignal(_db, s, BusProps, onCommit: OnSignalPropCommit);
                 break;
             default:
                 ShowDetailNodes();
@@ -1720,7 +1790,8 @@ public partial class MainViewModel : ObservableObject
         }
         else
         {
-            LdfPropertyBuilder.FillScheduleSlot(_db, row.ScheduleIndex, row.EntryIndex, ScheduleProps);
+            LdfPropertyBuilder.FillScheduleSlot(_db, row.ScheduleIndex, row.EntryIndex, ScheduleProps,
+                OnSchedulePropCommit);
             var slot = _db.Schedules[row.ScheduleIndex].Slots[row.EntryIndex];
             var fname = string.IsNullOrEmpty(slot.FrameName)
                 ? LdfPropertyBuilder.StripScheduleCommand(slot.Command)
@@ -1736,6 +1807,333 @@ public partial class MainViewModel : ObservableObject
                 ShowDetailNodes();
                 SelectIndex0AndFillObjectProps();
             }
+        }
+    }
+
+    private void OnSchedulePropCommit(PropNode node)
+    {
+        if (_db == null || SelectedScheduleRow == null || SelectedScheduleRow.IsHeader) return;
+        int si = SelectedScheduleRow.ScheduleIndex;
+        int ei = SelectedScheduleRow.EntryIndex;
+        if (si < 0 || si >= _db.Schedules.Count) return;
+        var table = _db.Schedules[si];
+        if (ei < 0 || ei >= table.Slots.Count) return;
+        var slot = table.Slots[ei];
+
+        switch (node.Key)
+        {
+            case "Slot.Delay":
+                if (!double.TryParse(node.Value?.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var delay)
+                    || delay < 0)
+                {
+                    node.SetValueSilent(slot.DelayMs.ToString("0.00", CultureInfo.InvariantCulture));
+                    return;
+                }
+                slot.DelayMs = delay;
+                break;
+            case "Slot.Frame":
+            {
+                var name = (node.Value ?? "").Trim();
+                if (string.IsNullOrEmpty(name)) return;
+                slot.FrameName = name;
+                slot.Command = name;
+                var fr = _db.FindFrame(name);
+                if (fr != null)
+                {
+                    slot.Kind = fr.IsDiagnostic ? fr.Name : "Unconditional";
+                    slot.DisplayType = fr.IsDiagnostic ? "Diagnostic" : "Unconditional";
+                }
+                else if (_db.EventTriggeredFrames.Any(e =>
+                             string.Equals(e.Name, name, StringComparison.OrdinalIgnoreCase)))
+                {
+                    slot.Kind = name;
+                    slot.DisplayType = "Event-Triggered";
+                }
+                else if (_db.SporadicFrames.Any(e =>
+                             string.Equals(e.Name, name, StringComparison.OrdinalIgnoreCase)))
+                {
+                    slot.Kind = name;
+                    slot.DisplayType = "Sporadic";
+                }
+                else
+                {
+                    slot.Kind = name;
+                    slot.DisplayType = "";
+                }
+                break;
+            }
+            default:
+                return;
+        }
+
+        IsDirty = true;
+        RefreshScheduleRowsKeepSelection(si, ei);
+        LdfPropertyBuilder.FillScheduleSlot(_db, si, ei, ScheduleProps, OnSchedulePropCommit);
+        if (node.Key == "Slot.Frame")
+        {
+            var fr = _db.FindFrame(slot.FrameName);
+            if (fr != null)
+            {
+                ShowDetailFrame(fr);
+                SelectIndex0AndFillObjectProps();
+            }
+        }
+    }
+
+    private void RefreshScheduleRowsKeepSelection(int scheduleIndex, int entryIndex)
+    {
+        var keepSi = scheduleIndex;
+        var keepEi = entryIndex;
+        FillSchedules();
+        SelectedScheduleRow = FindScheduleRow(keepSi, keepEi, header: keepEi < 0)
+                              ?? FindScheduleRow(keepSi, -1, header: true);
+    }
+
+    /// <summary>Vector Pane2 HandleCanDrop — frames / ETF / sporadic / predefined commands.</summary>
+    public bool CanDropOntoSchedule(object? payload) =>
+        _db != null && HasDocument && LdfPropertyBuilder.CanDropOntoSchedule(payload);
+
+    /// <summary>Unconditional frame that can be dragged onto ETF / Sporadic for association.</summary>
+    public bool CanDragForAssociation(object? payload) =>
+        _db != null && HasDocument && payload is LdfFrame f && LdfFrameAssociationRules.IsAssociableUnconditional(f);
+
+    public bool CanDropOntoAssociationTarget(object? targetPayload, object? dragPayload, out string error)
+    {
+        error = "";
+        if (_db == null || !HasDocument || dragPayload is not LdfFrame frame)
+            return false;
+        return targetPayload switch
+        {
+            LdfEventTriggeredFrame et =>
+                LdfFrameAssociationRules.CanAssociateToEventTriggered(_db, et, frame, out error),
+            LdfSporadicFrame sp =>
+                LdfFrameAssociationRules.CanAssociateToSporadic(_db, sp, frame, out error),
+            _ => false
+        };
+    }
+
+    public bool TryAssociateFrame(object targetPayload, LdfFrame frame)
+    {
+        if (_db == null) return false;
+        if (targetPayload is LdfEventTriggeredFrame et)
+        {
+            if (!LdfFrameAssociationRules.CanAssociateToEventTriggered(_db, et, frame, out var err))
+            {
+                MessageBox.Show(err, "Event-Triggered Frame", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return false;
+            }
+            et.FrameNames.Add(frame.Name);
+            MarkDirtyAndRefresh();
+            StatusText = $"Associated <{frame.Name}> → Event-Triggered <{et.Name}>";
+            return true;
+        }
+        if (targetPayload is LdfSporadicFrame sp)
+        {
+            if (!LdfFrameAssociationRules.CanAssociateToSporadic(_db, sp, frame, out var err))
+            {
+                MessageBox.Show(err, "Sporadic Frame", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return false;
+            }
+            sp.FrameNames.Add(frame.Name);
+            MarkDirtyAndRefresh();
+            StatusText = $"Associated <{frame.Name}> → Sporadic <{sp.Name}>";
+            return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Vector CreateFrameSlot + GetBestSlotDelayInMs, then GetMinMaxCycleTimes via FillSchedules.
+    /// <paramref name="insertAt"/>: -1 append; otherwise insert before that entry index.
+    /// </summary>
+    public bool TryDropOntoSchedule(object payload, int scheduleIndex, int insertAt = -1)
+    {
+        if (_db == null || !HasDocument) return false;
+        if (scheduleIndex < 0 || scheduleIndex >= _db.Schedules.Count) return false;
+        if (!LdfPropertyBuilder.CanDropOntoSchedule(payload)) return false;
+
+        var table = _db.Schedules[scheduleIndex];
+        LdfScheduleSlot? slot = payload switch
+        {
+            string cmd => LdfPropertyBuilder.CreateCommandSlot(_db, cmd),
+            _ => LdfPropertyBuilder.CreateFrameSlot(payload)
+        };
+        if (slot == null) return false;
+
+        slot.DelayMs = LdfPropertyBuilder.GetBestSlotDelayInMs(_db, slot);
+        int at = insertAt < 0 || insertAt > table.Slots.Count ? table.Slots.Count : insertAt;
+        table.Slots.Insert(at, slot);
+
+        IsDirty = true;
+        RefreshScheduleRowsKeepSelection(scheduleIndex, at);
+        LdfPropertyBuilder.FillScheduleSlot(_db, scheduleIndex, at, ScheduleProps, OnSchedulePropCommit);
+
+        var fname = string.IsNullOrEmpty(slot.FrameName)
+            ? LdfPropertyBuilder.StripScheduleCommand(slot.Command)
+            : slot.FrameName;
+        var fr = _db.FindFrame(fname);
+        if (fr != null)
+        {
+            ShowDetailFrame(fr);
+            SelectIndex0AndFillObjectProps();
+        }
+        StatusText = $"Added slot '{fname}' (Delay {slot.DelayMs:0.##} ms)";
+        return true;
+    }
+
+    public bool ResolveScheduleDropTarget(ScheduleRow? row, out int scheduleIndex, out int insertAt)
+    {
+        scheduleIndex = -1;
+        insertAt = -1;
+        if (_db == null || _db.Schedules.Count == 0) return false;
+
+        if (row != null && row.ScheduleIndex >= 0 && row.ScheduleIndex < _db.Schedules.Count)
+        {
+            scheduleIndex = row.ScheduleIndex;
+            insertAt = row.IsHeader || row.EntryIndex < 0
+                ? _db.Schedules[scheduleIndex].Slots.Count
+                : row.EntryIndex;
+            return true;
+        }
+
+        if (SelectedScheduleRow != null
+            && SelectedScheduleRow.ScheduleIndex >= 0
+            && SelectedScheduleRow.ScheduleIndex < _db.Schedules.Count)
+        {
+            scheduleIndex = SelectedScheduleRow.ScheduleIndex;
+            insertAt = SelectedScheduleRow.IsHeader || SelectedScheduleRow.EntryIndex < 0
+                ? _db.Schedules[scheduleIndex].Slots.Count
+                : SelectedScheduleRow.EntryIndex + 1;
+            return true;
+        }
+
+        scheduleIndex = 0;
+        insertAt = _db.Schedules[0].Slots.Count;
+        return true;
+    }
+
+    private void OnSignalPropCommit(PropNode node)
+    {
+        if (_db == null) return;
+        var sg = SelectedFrameSignal != null
+            ? _db.FindSignal(SelectedFrameSignal.Name)
+            : SelectedTreeItem?.Payload as LdfSignal;
+        if (sg == null && SelectedFrameSignal != null)
+            sg = _db.DiagnosticSignals.FirstOrDefault(s =>
+                string.Equals(s.Name, SelectedFrameSignal.Name, StringComparison.OrdinalIgnoreCase));
+        if (sg == null) return;
+
+        string? frameName = DetailFrame?.Name;
+        int startBit = SelectedFrameSignal?.StartBit ?? 0;
+        if (SelectedFrameSignal == null && !string.IsNullOrEmpty(frameName))
+        {
+            var fs = DetailFrame?.Signals.FirstOrDefault(x =>
+                string.Equals(x.Name, sg.Name, StringComparison.OrdinalIgnoreCase));
+            if (fs != null) startBit = fs.StartBit;
+        }
+
+        switch (node.Key)
+        {
+            case "Signal.Name":
+            {
+                var newName = (node.Value ?? "").Trim();
+                if (string.IsNullOrEmpty(newName))
+                {
+                    node.SetValueSilent(sg.Name);
+                    break;
+                }
+                var old = sg.Name;
+                if (!string.Equals(old, newName, StringComparison.Ordinal))
+                {
+                    foreach (var fr in _db.Frames)
+                        foreach (var fs in fr.Signals.Where(x => x.Name == old))
+                            fs.Name = newName;
+                    foreach (var rep in _db.Representations)
+                        for (int i = 0; i < rep.Signals.Count; i++)
+                            if (rep.Signals[i] == old)
+                                rep.Signals[i] = newName;
+                    sg.Name = newName;
+                }
+                break;
+            }
+            case "Signal.Length":
+            {
+                if (!int.TryParse(node.Value?.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var bits)
+                    || bits < 1)
+                {
+                    node.SetValueSilent(sg.SizeBits.ToString(CultureInfo.InvariantCulture));
+                    break;
+                }
+                sg.SizeBits = bits;
+                break;
+            }
+            case "Signal.Startbit":
+            {
+                if (!int.TryParse(node.Value?.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var sb)
+                    || sb < 0)
+                {
+                    node.SetValueSilent(startBit.ToString(CultureInfo.InvariantCulture));
+                    break;
+                }
+                if (!string.IsNullOrEmpty(frameName))
+                {
+                    var fr = _db.FindFrame(frameName);
+                    var fs = fr?.Signals.FirstOrDefault(x =>
+                        string.Equals(x.Name, sg.Name, StringComparison.OrdinalIgnoreCase));
+                    if (fs != null) fs.StartBit = sb;
+                }
+                startBit = sb;
+                break;
+            }
+            default:
+                return;
+        }
+
+        IsDirty = true;
+        /* Refresh middle signal list + layout + props (Startbit error updates). */
+        if (DetailFrame != null)
+            ShowDetailFrame(DetailFrame);
+        var row = FrameSignals.FirstOrDefault(r =>
+            string.Equals(r.Name, sg.Name, StringComparison.OrdinalIgnoreCase));
+        if (row != null)
+        {
+            _suppressSigSync = true;
+            SelectedFrameSignal = row;
+            SelectedSignalIndex = row.Index;
+            _suppressSigSync = false;
+            startBit = row.StartBit;
+        }
+        LdfPropertyBuilder.FillSignal(_db, sg, BusProps,
+            DetailFrame != null ? startBit : null, frameName, OnSignalPropCommit);
+        ApplyFrameSignalStartbitErrors();
+        if (node.Key == "Signal.Name")
+            RebuildTree();
+    }
+
+    private void ApplyFrameSignalStartbitErrors()
+    {
+        if (_db == null || DetailFrame == null) return;
+        int capacity = Math.Max(1, DetailFrame.Length) * 8;
+        foreach (var row in FrameSignals)
+        {
+            var sg = _db.FindSignal(row.Name);
+            int len = sg?.SizeBits ?? row.Length;
+            bool overflow = row.StartBit < 0 || row.StartBit + Math.Max(1, len) > capacity;
+            bool nameClash = sg != null && (
+                _db.Signals.Count(s => string.Equals(s.Name, sg.Name, StringComparison.OrdinalIgnoreCase)) > 1
+                || _db.DiagnosticSignals.Any(s =>
+                    !ReferenceEquals(s, sg)
+                    && string.Equals(s.Name, sg.Name, StringComparison.OrdinalIgnoreCase)));
+            row.HasStartBitError = overflow || nameClash;
+            if (overflow)
+            {
+                row.StartBitErrorTooltip =
+                    $"Length of Frame <{DetailFrame.Name}> exceeded. The Startbit of the Signal plus the Signal Length must be less than {capacity}.";
+            }
+            else if (nameClash)
+                row.StartBitErrorTooltip = $"Signal Name <{row.Name}> not unique";
+            else
+                row.StartBitErrorTooltip = "";
         }
     }
 
@@ -1774,10 +2172,10 @@ public partial class MainViewModel : ObservableObject
                 LdfPropertyBuilder.FillFrame(_db, f, BusProps);
                 break;
             case LdfEventTriggeredFrame e:
-                LdfPropertyBuilder.FillEventTriggered(e, BusProps);
+                LdfPropertyBuilder.FillEventTriggered(_db, e, BusProps);
                 break;
             case LdfSporadicFrame s:
-                LdfPropertyBuilder.FillSporadic(s, BusProps);
+                LdfPropertyBuilder.FillSporadic(_db, s, BusProps);
                 break;
         }
     }
@@ -1800,18 +2198,23 @@ public sealed class RecentFileItem
     public string Display { get; set; } = "";
 }
 
-public sealed class ScheduleRow
+/// <summary>Vector Schedule TreeListView node (table header or slot).</summary>
+public partial class ScheduleRow : ObservableObject
 {
-    public string Table { get; set; } = "";
-    public string Type { get; set; } = "";
-    public string Delay { get; set; } = "";
-    public string MaxFrame { get; set; } = "";
-    public string MinFrame { get; set; } = "";
-    public string Period { get; set; } = "";
-    public bool IsHeader { get; set; }
-    public int ScheduleIndex { get; set; }
-    public int EntryIndex { get; set; } = -1;
+    [ObservableProperty] private string _table = "";
+    [ObservableProperty] private string _type = "";
+    [ObservableProperty] private string _delay = "";
+    [ObservableProperty] private string _maxFrame = "";
+    [ObservableProperty] private string _minFrame = "";
+    [ObservableProperty] private string _period = "";
+    [ObservableProperty] private bool _isHeader;
+    [ObservableProperty] private bool _isExpanded = true;
+    [ObservableProperty] private bool _isSelected;
+    [ObservableProperty] private int _scheduleIndex;
+    [ObservableProperty] private int _entryIndex = -1;
+
     public object? Payload { get; set; }
+    public ObservableCollection<ScheduleRow> Children { get; } = new();
 }
 
 public sealed class NodeRow
@@ -1828,12 +2231,14 @@ public sealed class NodeRow
     public object? Payload { get; set; }
 }
 
-public sealed class FrameSignalRow
+public partial class FrameSignalRow : ObservableObject
 {
-    public int Index { get; set; }
-    public string Name { get; set; } = "";
-    public int StartBit { get; set; }
-    public int Length { get; set; }
-    public string Publisher { get; set; } = "";
-    public string Subscribers { get; set; } = "";
+    [ObservableProperty] private int _index;
+    [ObservableProperty] private string _name = "";
+    [ObservableProperty] private int _startBit;
+    [ObservableProperty] private int _length;
+    [ObservableProperty] private string _publisher = "";
+    [ObservableProperty] private string _subscribers = "";
+    [ObservableProperty] private bool _hasStartBitError;
+    [ObservableProperty] private string _startBitErrorTooltip = "";
 }

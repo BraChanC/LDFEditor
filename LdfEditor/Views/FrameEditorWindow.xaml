@@ -8,26 +8,64 @@
   <!-- Layout mirrored from Vector FrameDialogMainControl (LIN): Props / RxTx / Mapped Signals. -->
   <Window.Resources>
     <BooleanToVisibilityConverter x:Key="BoolToVis"/>
-    <Style x:Key="MapTabItem" TargetType="TabItem">
-      <Setter Property="Width" Value="36"/>
-      <Setter Property="Height" Value="36"/>
+    <!-- Vector SignalPDUControl: icon tabs on the LEFT edge of the mapping area -->
+    <Style x:Key="MapTabControl" TargetType="TabControl">
       <Setter Property="Padding" Value="0"/>
-      <Setter Property="Margin" Value="0,0,0,2"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="TabControl">
+            <Grid>
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="28"/>
+                <ColumnDefinition Width="*"/>
+              </Grid.ColumnDefinitions>
+              <Border Grid.Column="0" Background="#F0F0F0" BorderBrush="#A0A0A0"
+                      BorderThickness="1,1,0,1" Padding="2,4,2,4">
+                <StackPanel IsItemsHost="True" Orientation="Vertical"
+                            VerticalAlignment="Top" HorizontalAlignment="Center"/>
+              </Border>
+              <Border Grid.Column="1" Background="White" BorderBrush="#A0A0A0"
+                      BorderThickness="1" Padding="0">
+                <ContentPresenter ContentSource="SelectedContent"/>
+              </Border>
+            </Grid>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style x:Key="MapTabItem" TargetType="TabItem">
+      <Setter Property="Width" Value="22"/>
+      <Setter Property="Height" Value="22"/>
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="Margin" Value="0,0,0,3"/>
+      <Setter Property="HorizontalContentAlignment" Value="Center"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
       <Setter Property="Template">
         <Setter.Value>
           <ControlTemplate TargetType="TabItem">
             <Border x:Name="Bd" Background="#F0F0F0" BorderBrush="#A0A0A0" BorderThickness="1"
-                    Margin="0,0,0,2" CornerRadius="2" ToolTip="{TemplateBinding Header}">
-              <ContentPresenter ContentSource="Header" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    Width="22" Height="22" SnapsToDevicePixels="True"
+                    ToolTip="{TemplateBinding ToolTip}">
+              <ContentPresenter ContentSource="Header"
+                                HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Border>
             <ControlTemplate.Triggers>
               <Trigger Property="IsSelected" Value="True">
-                <Setter TargetName="Bd" Property="Background" Value="#D6E4F0"/>
-                <Setter TargetName="Bd" Property="BorderBrush" Value="#3A6EA5"/>
+                <Setter TargetName="Bd" Property="Background" Value="White"/>
+                <Setter TargetName="Bd" Property="BorderBrush" Value="#316AC5"/>
               </Trigger>
               <Trigger Property="IsMouseOver" Value="True">
-                <Setter TargetName="Bd" Property="Background" Value="#E8EEF4"/>
+                <Setter TargetName="Bd" Property="Background" Value="#E8F0F8"/>
               </Trigger>
+              <MultiTrigger>
+                <MultiTrigger.Conditions>
+                  <Condition Property="IsSelected" Value="True"/>
+                  <Condition Property="IsMouseOver" Value="True"/>
+                </MultiTrigger.Conditions>
+                <Setter TargetName="Bd" Property="Background" Value="White"/>
+              </MultiTrigger>
             </ControlTemplate.Triggers>
           </ControlTemplate>
         </Setter.Value>
@@ -171,10 +209,12 @@
                     Click="OnMapExisting" IsEnabled="{Binding CanMapExisting}" HorizontalAlignment="Stretch"/>
           </UniformGrid>
 
-          <TabControl TabStripPlacement="Left" SelectedIndex="{Binding MapTabIndex, Mode=TwoWay}">
+          <TabControl Style="{StaticResource MapTabControl}"
+                      SelectedIndex="{Binding MapTabIndex, Mode=TwoWay}">
             <TabItem Style="{StaticResource MapTabItem}" ToolTip="List">
               <TabItem.Header>
-                <TextBlock Text="☰" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center"/>
+                <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE8FD;" FontSize="12"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
               </TabItem.Header>
               <DataGrid x:Name="SigGrid" ItemsSource="{Binding Signals}" AutoGenerateColumns="False"
                         IsReadOnly="True" HeadersVisibility="Column" CanUserAddRows="False"
@@ -192,7 +232,8 @@
             </TabItem>
             <TabItem Style="{StaticResource MapTabItem}" ToolTip="Layout">
               <TabItem.Header>
-                <TextBlock Text="▦" FontSize="14" HorizontalAlignment="Center"/>
+                <TextBlock FontFamily="Segoe MDL2 Assets" Text="&#xE80A;" FontSize="12"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
               </TabItem.Header>
               <Border Background="White" Padding="4">
                 <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">

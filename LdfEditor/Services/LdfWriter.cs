@@ -248,6 +248,13 @@ public static class LdfWriter
                 return $"UnassignFrameId {{{e.NodeName}, {e.AssignedFrame}}}";
             case "FreeFormat":
                 return $"FreeFormat {{{string.Join(", ", e.IntArgs)}}}";
+            case "ReadByIdentifier":
+            {
+                var args = e.IntArgs.Count > 0
+                    ? ", " + string.Join(", ", e.IntArgs)
+                    : "";
+                return $"ReadByIdentifier {{{e.NodeName}{args}}}";
+            }
             case "MasterReq":
                 return "MasterReq";
             case "SlaveResp":

@@ -5,6 +5,7 @@ using System.Text.RegularExpressions;
 using Antlr4.Runtime;
 using LdfEditor.Antlr;
 using LdfEditor.Models;
+using LdfEditor.Services;
 
 namespace LdfEditor.Services.Diagnostics;
 
@@ -616,23 +617,20 @@ public static class LdfDiagnosticEngine
         foreach (var e in db.EventTriggeredFrames)
         {
             frameNames.Add(e.Name);
-            if (!string.IsNullOrEmpty(e.CollisionResolvingSchedule)
-                && db.Schedules.All(s => !string.Equals(s.Name, e.CollisionResolvingSchedule, StringComparison.OrdinalIgnoreCase)))
-                Add(diags, "LDF0105", Loc(map, e.Name),
-                    $"ETF '{e.Name}': collision schedule '{e.CollisionResolvingSchedule}' not found",
-                    "Event_triggered_frames must reference an existing Schedule_tables entry.",
-                    "LIN 2.2A — Event_triggered_frame_def / FC0105", e.Name);
-            foreach (var fn in e.FrameNames)
-            {
-                if (db.Frames.All(f => !string.Equals(f.Name, fn, StringComparison.OrdinalIgnoreCase)))
-                    Add(diags, "LDF0105", Loc(map, e.Name),
-                        $"ETF '{e.Name}': associated frame '{fn}' not found",
-                        "Associated frames must be declared in Frames { }.",
-                        "LIN 2.2A — Event_triggered_frame_def / FC0105", e.Name);
-            }
+            LdfFrameAssociationRules.TryValidateEventTriggered(db, e, (sym, msg) =>
+                Add(diags, "LDF0105", Loc(map, e.Name), msg,
+                    "Event-Triggered Frame: collision schedule, associated unconditional frames " +
+                    "(slave publishers, equal length, distinct publishers).",
+                    "LIN 2.2A — Event_triggered_frame_def / Vector ValidateETFTransmitter", sym));
         }
         foreach (var sp in db.SporadicFrames)
+        {
             frameNames.Add(sp.Name);
+            LdfFrameAssociationRules.TryValidateSporadic(db, sp, (sym, msg) =>
+                Add(diags, "LDF0106", Loc(map, sp.Name), msg,
+                    "Sporadic Frame: associated frames must exist and be master-published unconditional frames.",
+                    "LIN 2.2A — Sporadic_frame_def / Vector ValidateSPFrames", sym));
+        }
 
         bool needsAttrs = ProtocolAtLeast(db.ProtocolVersion, "2.0");
         foreach (var slave in db.Slaves)

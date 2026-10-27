@@ -19,7 +19,7 @@
   </Window.InputBindings>
 
   <DockPanel>
-    <Menu x:Name="MainMenu" DockPanel.Dock="Top" Background="{StaticResource Vec.Header}" Padding="2">
+    <Menu x:Name="MainMenu" DockPanel.Dock="Top" Background="{StaticResource Vec.Header}" Padding="1,2">
       <MenuItem x:Name="FileMenu" Header="_File">
         <MenuItem Header="_New File...">
           <MenuItem.Icon>
@@ -112,9 +112,10 @@
       </MenuItem>
     </Menu>
     <!-- Vector MainWindow ToolStrip: New▼ Open Consistency Save SaveAll | Slave Frame▼ Schedule | hex | Help -->
-    <ToolBarTray DockPanel.Dock="Top" Background="{StaticResource Vec.Header}">
+    <ToolBarTray DockPanel.Dock="Top" Background="{StaticResource Vec.ToolStrip}">
       <ToolBar Band="0" BandIndex="0" ToolBarTray.IsLocked="True"
-              Background="{StaticResource Vec.Header}" Padding="2,1">
+              Background="{StaticResource Vec.ToolStrip}" Padding="1,0"
+              BorderBrush="#A0A0A0" BorderThickness="0,0,0,1">
         <!-- tsbNewFile (ToolStripSplitButton) -->
         <Menu Style="{StaticResource Vec.TbMenu}" ToolTip="New File">
           <MenuItem Style="{StaticResource Vec.TbMenuItem}">
@@ -221,11 +222,13 @@
       </ToolBar>
     </ToolBarTray>
     <StatusBar DockPanel.Dock="Bottom">
-      <TextBlock Text="{Binding StatusText}"/>
+      <StatusBarItem>
+        <TextBlock Text="{Binding StatusText}" FontFamily="Tahoma" FontSize="11"/>
+      </StatusBarItem>
     </StatusBar>
 
-    <!-- Outer: Nav | Content -->
-    <Grid Margin="4">
+    <!-- Outer: Nav | Content — classic flat docking -->
+    <Grid Margin="2">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="240" MinWidth="160"/>
         <ColumnDefinition Width="5"/>
@@ -246,13 +249,84 @@
               <Setter Property="VerticalContentAlignment" Value="Center"/>
             </Style>
             <HierarchicalDataTemplate x:Key="NavTreeTemplate" ItemsSource="{Binding Children}">
-              <TextBlock Text="{Binding Title}" Margin="0,1"/>
+              <StackPanel Orientation="Horizontal" Margin="0,1">
+                <TextBlock FontFamily="Segoe MDL2 Assets" FontSize="12" Margin="0,0,4,0"
+                           VerticalAlignment="Center" Width="14" TextAlignment="Center">
+                  <TextBlock.Style>
+                    <Style TargetType="TextBlock">
+                      <Setter Property="Text" Value="&#xE7C3;"/>
+                      <Setter Property="Foreground" Value="#555"/>
+                      <Style.Triggers>
+                        <DataTrigger Binding="{Binding Kind}" Value="Root">
+                          <Setter Property="Text" Value="&#xE8B7;"/>
+                          <Setter Property="Foreground" Value="#E6B800"/>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding Kind}" Value="Cat">
+                          <Setter Property="Text" Value="&#xE8B7;"/>
+                          <Setter Property="Foreground" Value="#E6B800"/>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding Kind}" Value="Frame">
+                          <Setter Property="Text" Value="&#xE8A5;"/>
+                          <Setter Property="Foreground" Value="#2E5A8C"/>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding Kind}" Value="FrameRef">
+                          <Setter Property="Text" Value="&#xE8A5;"/>
+                          <Setter Property="Foreground" Value="#2E5A8C"/>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding Kind}" Value="Event">
+                          <Setter Property="Text" Value="&#xE945;"/>
+                          <Setter Property="Foreground" Value="#6A1B9A"/>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding Kind}" Value="Sporadic">
+                          <Setter Property="Text" Value="&#xE121;"/>
+                          <Setter Property="Foreground" Value="#1565C0"/>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding Kind}" Value="Command">
+                          <Setter Property="Text" Value="&#xE943;"/>
+                          <Setter Property="Foreground" Value="#C62828"/>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding Kind}" Value="Node">
+                          <Setter Property="Text" Value="&#xE77B;"/>
+                          <Setter Property="Foreground" Value="#2E7D32"/>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding Kind}" Value="Signal">
+                          <Setter Property="Text" Value="&#xE9E9;"/>
+                          <Setter Property="Foreground" Value="#00838F"/>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding Kind}" Value="PubSig">
+                          <Setter Property="Text" Value="&#xE8B7;"/>
+                          <Setter Property="Foreground" Value="#E6B800"/>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding Kind}" Value="SubSig">
+                          <Setter Property="Text" Value="&#xE8B7;"/>
+                          <Setter Property="Foreground" Value="#E6B800"/>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding Kind}" Value="PubFrm">
+                          <Setter Property="Text" Value="&#xE8B7;"/>
+                          <Setter Property="Foreground" Value="#E6B800"/>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding Kind}" Value="SubFrm">
+                          <Setter Property="Text" Value="&#xE8B7;"/>
+                          <Setter Property="Foreground" Value="#E6B800"/>
+                        </DataTrigger>
+                      </Style.Triggers>
+                    </Style>
+                  </TextBlock.Style>
+                </TextBlock>
+                <TextBlock Text="{Binding Title}" VerticalAlignment="Center"/>
+              </StackPanel>
             </HierarchicalDataTemplate>
           </TabControl.Resources>
           <TabItem Header="Frames/Commands">
-            <TreeView ItemsSource="{Binding FramesTreeRoots}"
+            <TreeView x:Name="FramesNavTree"
+                      ItemsSource="{Binding FramesTreeRoots}"
                       SelectedItemChanged="OnTreeSelected"
                       MouseDoubleClick="OnTreeDoubleClick"
+                      PreviewMouseLeftButtonDown="OnNavTreePreviewMouseLeftButtonDown"
+                      PreviewMouseMove="OnNavTreePreviewMouseMove"
+                      AllowDrop="True"
+                      DragOver="OnFramesTreeDragOver"
+                      Drop="OnFramesTreeDrop"
                       ItemContainerStyle="{StaticResource NavTreeItemStyle}"
                       ItemTemplate="{StaticResource NavTreeTemplate}"
                       BorderThickness="0" Background="White"
@@ -262,6 +336,11 @@
             <TreeView ItemsSource="{Binding NodesTreeRoots}"
                       SelectedItemChanged="OnTreeSelected"
                       MouseDoubleClick="OnTreeDoubleClick"
+                      PreviewMouseLeftButtonDown="OnNavTreePreviewMouseLeftButtonDown"
+                      PreviewMouseMove="OnNavTreePreviewMouseMove"
+                      AllowDrop="True"
+                      DragOver="OnFramesTreeDragOver"
+                      Drop="OnFramesTreeDrop"
                       ItemContainerStyle="{StaticResource NavTreeItemStyle}"
                       ItemTemplate="{StaticResource NavTreeTemplate}"
                       BorderThickness="0" Background="White"
@@ -293,27 +372,199 @@
               <Border DockPanel.Dock="Top" Style="{StaticResource Vec.HeaderBar}">
                 <TextBlock Text="Schedule Tables" Style="{StaticResource Vec.SectionTitle}"/>
               </Border>
-              <DataGrid ItemsSource="{Binding ScheduleRows}"
-                        SelectedItem="{Binding SelectedScheduleRow}">
-                <DataGrid.RowStyle>
-                  <Style TargetType="DataGridRow">
-                    <Style.Triggers>
-                      <DataTrigger Binding="{Binding IsHeader}" Value="True">
-                        <Setter Property="FontWeight" Value="SemiBold"/>
-                        <Setter Property="Background" Value="{StaticResource Vec.AccentSoft}"/>
-                      </DataTrigger>
-                    </Style.Triggers>
-                  </Style>
-                </DataGrid.RowStyle>
-                <DataGrid.Columns>
-                  <DataGridTextColumn Header="Table / Slot" Binding="{Binding Table}" Width="200"/>
-                  <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="120"/>
-                  <DataGridTextColumn Header="Delay [ms]" Binding="{Binding Delay}" Width="80"/>
-                  <DataGridTextColumn Header="Max. Frame Time" Binding="{Binding MaxFrame}" Width="110"/>
-                  <DataGridTextColumn Header="Min. Frame Time" Binding="{Binding MinFrame}" Width="110"/>
-                  <DataGridTextColumn Header="Act. Min/Max Period" Binding="{Binding Period}" Width="*"/>
-                </DataGrid.Columns>
-              </DataGrid>
+              <!-- Vector Schedule TreeListView: expandable table → slots -->
+              <DockPanel Grid.IsSharedSizeScope="True"
+                         AllowDrop="True"
+                         DragOver="OnScheduleDragOver"
+                         DragLeave="OnScheduleDragLeave"
+                         Drop="OnScheduleDrop">
+                <Border DockPanel.Dock="Top" Background="{StaticResource Vec.Caption}"
+                        BorderBrush="{StaticResource Vec.Border}" BorderThickness="0,0,0,1">
+                  <Grid Height="20">
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="16"/>
+                      <ColumnDefinition Width="204"/>
+                      <ColumnDefinition Width="120"/>
+                      <ColumnDefinition Width="80"/>
+                      <ColumnDefinition Width="100"/>
+                      <ColumnDefinition Width="100"/>
+                      <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Border Grid.Column="1" BorderBrush="#A0A0A0" BorderThickness="0,0,1,0" Padding="2,0">
+                      <TextBlock Text="Table / Slot" VerticalAlignment="Center" FontFamily="Tahoma" FontSize="11"/>
+                    </Border>
+                    <Border Grid.Column="2" BorderBrush="#A0A0A0" BorderThickness="0,0,1,0" Padding="4,0">
+                      <TextBlock Text="Type" VerticalAlignment="Center" FontFamily="Tahoma" FontSize="11"/>
+                    </Border>
+                    <Border Grid.Column="3" BorderBrush="#A0A0A0" BorderThickness="0,0,1,0" Padding="4,0">
+                      <TextBlock Text="Delay [ms]" VerticalAlignment="Center" FontFamily="Tahoma" FontSize="11"/>
+                    </Border>
+                    <Border Grid.Column="4" BorderBrush="#A0A0A0" BorderThickness="0,0,1,0" Padding="4,0">
+                      <TextBlock Text="Max. Frame Time" VerticalAlignment="Center" FontFamily="Tahoma" FontSize="11"/>
+                    </Border>
+                    <Border Grid.Column="5" BorderBrush="#A0A0A0" BorderThickness="0,0,1,0" Padding="4,0">
+                      <TextBlock Text="Min. Frame Time" VerticalAlignment="Center" FontFamily="Tahoma" FontSize="11"/>
+                    </Border>
+                    <Border Grid.Column="6" Padding="4,0">
+                      <TextBlock Text="Act. Min/Max Period" VerticalAlignment="Center" FontFamily="Tahoma" FontSize="11"/>
+                    </Border>
+                  </Grid>
+                </Border>
+                <TreeView x:Name="ScheduleGrid"
+                          ItemsSource="{Binding ScheduleRows}"
+                          SelectedItemChanged="OnScheduleTreeSelected"
+                          BorderThickness="0" Background="White" Padding="0"
+                          VirtualizingStackPanel.IsVirtualizing="False"
+                          FontFamily="Tahoma" FontSize="11">
+                  <TreeView.ItemContainerStyle>
+                    <Style TargetType="TreeViewItem">
+                      <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
+                      <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}"/>
+                      <Setter Property="Padding" Value="0"/>
+                      <Setter Property="Margin" Value="0"/>
+                      <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                      <Setter Property="FontFamily" Value="Tahoma"/>
+                      <Setter Property="FontSize" Value="11"/>
+                      <Setter Property="Template">
+                        <Setter.Value>
+                          <ControlTemplate TargetType="TreeViewItem">
+                            <StackPanel>
+                              <Border x:Name="Bd" Background="Transparent" Padding="0" MinHeight="18"
+                                      SnapsToDevicePixels="True">
+                                <Grid>
+                                  <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                  </Grid.ColumnDefinitions>
+                                  <ToggleButton x:Name="Expander"
+                                                IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}}"
+                                                ClickMode="Press" Focusable="False"
+                                                Width="13" Height="13" Margin="2,2,1,0"
+                                                VerticalAlignment="Top">
+                                    <ToggleButton.Template>
+                                      <ControlTemplate TargetType="ToggleButton">
+                                        <Border x:Name="Eb" Width="11" Height="11" Background="White"
+                                                BorderBrush="#808080" BorderThickness="1"
+                                                SnapsToDevicePixels="True">
+                                          <Path x:Name="Glyph" Stroke="#000" StrokeThickness="1"
+                                                Data="M2.5,5.5 H8.5 M5.5,2.5 V8.5"
+                                                HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                          <Trigger Property="IsChecked" Value="True">
+                                            <Setter TargetName="Glyph" Property="Data" Value="M2.5,5.5 H8.5"/>
+                                          </Trigger>
+                                        </ControlTemplate.Triggers>
+                                      </ControlTemplate>
+                                    </ToggleButton.Template>
+                                  </ToggleButton>
+                                  <ContentPresenter Grid.Column="1" ContentSource="Header"
+                                                    HorizontalAlignment="Stretch"/>
+                                </Grid>
+                              </Border>
+                              <ItemsPresenter x:Name="ItemsHost" Margin="14,0,0,0"/>
+                            </StackPanel>
+                            <ControlTemplate.Triggers>
+                              <Trigger Property="HasItems" Value="False">
+                                <Setter TargetName="Expander" Property="Visibility" Value="Hidden"/>
+                              </Trigger>
+                              <Trigger Property="IsExpanded" Value="False">
+                                <Setter TargetName="ItemsHost" Property="Visibility" Value="Collapsed"/>
+                              </Trigger>
+                              <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource Vec.SelBg}"/>
+                              </Trigger>
+                              <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                  <Condition Property="IsSelected" Value="True"/>
+                                  <Condition Property="IsSelectionActive" Value="False"/>
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="Bd" Property="Background" Value="#D0D0D0"/>
+                              </MultiTrigger>
+                              <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#E8F0F8"/>
+                              </Trigger>
+                              <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                  <Condition Property="IsSelected" Value="True"/>
+                                  <Condition Property="IsMouseOver" Value="True"/>
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource Vec.SelBg}"/>
+                              </MultiTrigger>
+                            </ControlTemplate.Triggers>
+                          </ControlTemplate>
+                        </Setter.Value>
+                      </Setter>
+                    </Style>
+                  </TreeView.ItemContainerStyle>
+                  <TreeView.ItemTemplate>
+                    <HierarchicalDataTemplate ItemsSource="{Binding Children}">
+                      <Grid Height="18" Background="Transparent" MinWidth="700">
+                        <Grid.Style>
+                          <Style TargetType="Grid">
+                            <Style.Triggers>
+                              <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                <Setter Property="TextBlock.Foreground" Value="White"/>
+                              </DataTrigger>
+                            </Style.Triggers>
+                          </Style>
+                        </Grid.Style>
+                        <Grid.ColumnDefinitions>
+                          <ColumnDefinition Width="204"/>
+                          <ColumnDefinition Width="120"/>
+                          <ColumnDefinition Width="80"/>
+                          <ColumnDefinition Width="100"/>
+                          <ColumnDefinition Width="100"/>
+                          <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,4,0">
+                          <TextBlock FontFamily="Segoe MDL2 Assets" FontSize="12" Margin="0,0,4,0"
+                                     VerticalAlignment="Center" Width="14" TextAlignment="Center">
+                            <TextBlock.Style>
+                              <Style TargetType="TextBlock">
+                                <Setter Property="Text" Value="&#xE8A5;"/>
+                                <Setter Property="Foreground" Value="#2E7D32"/>
+                                <Style.Triggers>
+                                  <DataTrigger Binding="{Binding IsHeader}" Value="True">
+                                    <Setter Property="Text" Value="&#xE80A;"/>
+                                    <Setter Property="Foreground" Value="#1565C0"/>
+                                  </DataTrigger>
+                                  <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                    <Setter Property="Foreground" Value="White"/>
+                                  </DataTrigger>
+                                </Style.Triggers>
+                              </Style>
+                            </TextBlock.Style>
+                          </TextBlock>
+                          <TextBlock Text="{Binding Table}" VerticalAlignment="Center"
+                                     FontFamily="Tahoma" FontSize="11" TextTrimming="CharacterEllipsis">
+                            <TextBlock.Style>
+                              <Style TargetType="TextBlock">
+                                <Setter Property="FontWeight" Value="Normal"/>
+                                <Style.Triggers>
+                                  <DataTrigger Binding="{Binding IsHeader}" Value="True">
+                                    <Setter Property="FontWeight" Value="Bold"/>
+                                  </DataTrigger>
+                                </Style.Triggers>
+                              </Style>
+                            </TextBlock.Style>
+                          </TextBlock>
+                        </StackPanel>
+                        <TextBlock Grid.Column="1" Text="{Binding Type}" VerticalAlignment="Center"
+                                   FontFamily="Tahoma" FontSize="11" Margin="4,0" TextTrimming="CharacterEllipsis"/>
+                        <TextBlock Grid.Column="2" Text="{Binding Delay}" VerticalAlignment="Center"
+                                   FontFamily="Tahoma" FontSize="11" Margin="4,0"/>
+                        <TextBlock Grid.Column="3" Text="{Binding MaxFrame}" VerticalAlignment="Center"
+                                   FontFamily="Tahoma" FontSize="11" Margin="4,0"/>
+                        <TextBlock Grid.Column="4" Text="{Binding MinFrame}" VerticalAlignment="Center"
+                                   FontFamily="Tahoma" FontSize="11" Margin="4,0"/>
+                        <TextBlock Grid.Column="5" Text="{Binding Period}" VerticalAlignment="Center"
+                                   FontFamily="Tahoma" FontSize="11" Margin="4,0"/>
+                      </Grid>
+                    </HierarchicalDataTemplate>
+                  </TreeView.ItemTemplate>
+                </TreeView>
+              </DockPanel>
             </DockPanel>
           </Border>
 
@@ -369,6 +620,8 @@
               <DataGrid ItemsSource="{Binding FrameListRows}"
                         SelectedItem="{Binding SelectedFrameListRow}"
                         MouseDoubleClick="OnFrameListGridDoubleClick"
+                        PreviewMouseLeftButtonDown="OnFrameListPreviewMouseLeftButtonDown"
+                        PreviewMouseMove="OnFrameListPreviewMouseMove"
                         Visibility="{Binding IsFrameListDetailMode, Converter={StaticResource BoolToVis}}">
                 <DataGrid.Columns>
                   <DataGridTextColumn Header="Frame" Binding="{Binding Name}" Width="160"/>
@@ -388,7 +641,28 @@
                             MouseDoubleClick="OnFrameSignalGridDoubleClick">
                     <DataGrid.Columns>
                       <DataGridTextColumn Header="Signal" Binding="{Binding Name}" Width="160"/>
-                      <DataGridTextColumn Header="Startbit" Binding="{Binding StartBit}" Width="70"/>
+                      <DataGridTemplateColumn Header="Startbit" Width="90">
+                        <DataGridTemplateColumn.CellTemplate>
+                          <DataTemplate>
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                              <Border Width="14" Height="14" Margin="0,0,4,0"
+                                      VerticalAlignment="Center" Background="Transparent" Cursor="Help"
+                                      Visibility="{Binding HasStartBitError, Converter={StaticResource BoolToVis}}"
+                                      ToolTip="{Binding StartBitErrorTooltip}">
+                                <Viewbox Stretch="Uniform">
+                                  <Canvas Width="16" Height="16">
+                                    <Path Fill="#FFFFC107" Stroke="#FFB71C1C" StrokeThickness="0.8"
+                                          Data="M8,1.5 L14.5,14 L1.5,14 Z"/>
+                                    <TextBlock Canvas.Left="5.2" Canvas.Top="5.5" Text="!" FontSize="8"
+                                               FontWeight="Bold" FontFamily="Tahoma" Foreground="#FFB71C1C"/>
+                                  </Canvas>
+                                </Viewbox>
+                              </Border>
+                              <TextBlock Text="{Binding StartBit}" VerticalAlignment="Center"/>
+                            </StackPanel>
+                          </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                      </DataGridTemplateColumn>
                       <DataGridTextColumn Header="Length [Bit]" Binding="{Binding Length}" Width="90"/>
                       <DataGridTextColumn Header="Publisher" Binding="{Binding Publisher}" Width="100"/>
                       <DataGridTextColumn Header="Subscribers" Binding="{Binding Subscribers}" Width="*"/>
